@@ -15,8 +15,8 @@ contract ERC20Mock is ERC20, UUPSUpgradeable {
         _setupDecimals(decimals);
     }
 
-    /**
-     * @dev Function to mint tokens
+   /**
+   * @dev Function to mint tokens
    * @param value The amount of tokens to mint.
    * @return A boolean that indicates if the operation was successful.
    */

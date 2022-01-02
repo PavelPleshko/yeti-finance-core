@@ -2,7 +2,7 @@ import { getSigners } from '@nomiclabs/hardhat-ethers/internal/helpers';
 import { Signer } from 'ethers';
 import rawBRE from 'hardhat';
 import { AddressesProvider, AssetPoolManager, ERC20Mock, Yeti, YToken } from '../../typechain';
-import protocolConfig from '../../utils/config';
+import protocolConfig, { ProtocolConfig } from '../../utils/config';
 import { TokenIds } from '../../utils/config/tokens';
 import {
     deployAddressesProvider,
@@ -15,11 +15,12 @@ import { YetiContracts } from '../../utils/contract-factories';
 import { DatabaseBase } from '../../utils/deploy/database/database.base';
 import { deployYetiTokenImplementation } from '../../utils/deploy/tokens';
 import { getDependencyByKey } from '../../utils/env/ioc';
-import { initAssets } from '../../utils/initialization/init-assets';
+import { configureAssets, initAssets } from '../../utils/initialization/init-assets';
 import { deployTokenMocks } from './mock-tokens';
 
 export interface TestEnv {
     deployer: string;
+    config: ProtocolConfig;
     contracts: {
         yeti: Yeti;
         addressesProvider: AddressesProvider;
@@ -30,6 +31,7 @@ export interface TestEnv {
 
 
 const testEnv = {
+    config: protocolConfig,
     contracts: {},
 } as TestEnv;
 
@@ -77,7 +79,12 @@ const createTestEnv = async (owner: Signer) => {
         return acc;
     }, {} as Record<string, string>);
     const config = protocolConfig;
+
+    console.log('Deploying asset pools...');
     await initAssets(config.assetsConfig, tokenAddresses);
+
+    console.log('Configuring asset pools...');
+    await configureAssets(config.assetsConfig, tokenAddresses);
 };
 
 before(async () => {

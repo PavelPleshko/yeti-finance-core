@@ -1,6 +1,6 @@
 pragma solidity ^0.8.0;
 
-import { DataTypesYeti } from './DataTypesYeti.sol';
+import {DataTypesYeti} from './DataTypesYeti.sol';
 
 /**
  * @title Main interaction point with Yeti protocol. Implementation contract initialized via {UpgradeableProxy}.
@@ -10,10 +10,21 @@ import { DataTypesYeti } from './DataTypesYeti.sol';
  * @author YetiCORP
  */
 interface IYeti {
-
     event AssetCreated(address indexed asset, address token);
 
-    function createNewAsset(address asset, address lpToken) external;
+    event Deposit(
+        address indexed asset,
+        address assetProvider,
+        uint256 amount
+    );
+
+    function createNewAsset(
+        address asset,
+        address lpToken,
+        address assetManagerAddress
+    ) external;
+
+    function setAssetConfig(address asset, DataTypesYeti.PoolAssetConfig memory newConfig) external;
 
     function getAsset(address underlying) external view returns (DataTypesYeti.PoolAssetData memory);
 

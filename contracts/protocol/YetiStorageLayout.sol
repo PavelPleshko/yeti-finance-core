@@ -1,7 +1,7 @@
 pragma solidity ^0.8.0;
 
 import '../registry/IAddressesProvider.sol';
-import { DataTypesYeti } from './DataTypesYeti.sol';
+import {DataTypesYeti} from './DataTypesYeti.sol';
 
 /**
 * @title Storage layout for {Yeti} contract

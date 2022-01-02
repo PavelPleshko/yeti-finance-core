@@ -2,9 +2,9 @@ import { YetiContracts } from '../contract-factories';
 import { eEthereumNetwork } from './networks';
 import { AssetConfig, LendingPoolAssets } from './types';
 
-export interface ProtocolConfig<AssetName extends string = string> {
+export interface ProtocolConfig<AssetSymbol extends string = string> {
     assets: Record<eEthereumNetwork, {}>;
-    assetsConfig: Record<AssetName, AssetConfig>;
+    assetsConfig: Record<AssetSymbol, AssetConfig>;
     envConfig: Record<eEthereumNetwork, {
         inMemoryDb: boolean;
     }>;
@@ -21,12 +21,14 @@ export default {
         [LendingPoolAssets.USDC]: {
             decimals: 6,
             yetiTokenContract: YetiContracts.YToken,
-            borrowingAvailable: true
+            borrowingAvailable: true,
+            commissionFactor: '5',
         },
         [LendingPoolAssets.DAI]: {
             decimals: 18,
             yetiTokenContract: YetiContracts.YToken,
-            borrowingAvailable: true
+            borrowingAvailable: true,
+            commissionFactor: '7',
         }
     },
     envConfig: {

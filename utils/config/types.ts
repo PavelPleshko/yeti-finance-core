@@ -5,6 +5,7 @@ export interface AssetConfig {
     yetiTokenContract: YetiContracts;
     decimals: number;
     borrowingAvailable: boolean;
+    commissionFactor: string; // in %
 }
 
 

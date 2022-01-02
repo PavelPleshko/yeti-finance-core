@@ -9,7 +9,8 @@ import "../protocol/IYeti.sol";
 import "../shared/VersionedInit.sol";
 
 contract AssetPoolManager is VersionedInit, Ownable, UUPSUpgradeable {
-    IAddressesProvider internal addressesProvider;
+
+    event AssetCommissionChanged(address asset, uint256 newValue);
 
     struct CreatePositionInput {
         address yTokenImpl;
@@ -19,8 +20,11 @@ contract AssetPoolManager is VersionedInit, Ownable, UUPSUpgradeable {
         address underlying;
         address piggyBank;
         string underlyingName;
+        address assetLogicAddress;
         bytes params;
     }
+
+    IAddressesProvider internal addressesProvider;
 
     uint256 private constant ASSET_POOL_VERSION = 0x1;
 
@@ -37,21 +41,36 @@ contract AssetPoolManager is VersionedInit, Ownable, UUPSUpgradeable {
         addressesProvider = _addressesProvider;
     }
 
-    function initPosition(CreatePositionInput calldata input) external onlyMarketAdmin {
+    function initAssetPool(CreatePositionInput calldata input) external onlyMarketAdmin {
         // TODO init tokens here and put into market protocol
         require(input.underlying != input.yTokenImpl, 'AssetPoolManager: Asset and LP token addresses can not be equal');
-        IYeti assetPool = IYeti(addressesProvider.getMarketProtocol());
 
+        IYeti marketProtocol = IYeti(addressesProvider.getMarketProtocol());
         address yetiTokenProxy = _initializeTokenWithProxy(
             input.yTokenImpl,
-            abi.encodeWithSignature('initialize(address,address,uint8,string,string)',
-                input.underlying, address(this), input.underlyingDecimals, input.yTokenName, input.yTokenSymbol)
+            abi.encodeWithSignature(
+                'initialize(address,address,uint8,string,string)',
+                input.underlying, address(marketProtocol),
+                input.underlyingDecimals, input.yTokenName, input.yTokenSymbol
+            )
         );
 
-        assetPool.createNewAsset(
+        marketProtocol.createNewAsset(
             input.underlying,
-            yetiTokenProxy
+            yetiTokenProxy,
+            input.assetLogicAddress
         );
+    }
+
+    function setAssetCommission(address underlying, uint256 commissionFactor) public {
+
+        IYeti marketProtocol = IYeti(addressesProvider.getMarketProtocol());
+        DataTypesYeti.PoolAssetConfig memory config = marketProtocol.getAsset(underlying).config;
+
+        config.commissionFactor = commissionFactor;
+        marketProtocol.setAssetConfig(underlying, config);
+
+        emit AssetCommissionChanged(underlying, commissionFactor);
     }
 
     function _initializeTokenWithProxy(address tokenImpl, bytes memory initData) internal returns (address) {
@@ -62,6 +81,7 @@ contract AssetPoolManager is VersionedInit, Ownable, UUPSUpgradeable {
 
     /**
     * @dev part of UUPS-proxy upgrade flow. Should be called by the owner of this contract (proxy itself).
+    // TODO fix the security issue
     */
     function _authorizeUpgrade(address newImplementation) internal override {}
 }

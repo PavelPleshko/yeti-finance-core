@@ -2,11 +2,14 @@ pragma solidity ^0.8.0;
 
 import "openzeppelin-solidity/contracts/access/Ownable.sol";
 import "openzeppelin-solidity/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "./YetiStorageLayout.sol";
 import "../registry/IAddressesProvider.sol";
 import "../shared/VersionedInit.sol";
 import "./IYeti.sol";
 import {DataTypesYeti} from './DataTypesYeti.sol';
+import {IYToken} from '../tokens/IYToken.sol';
+import {AssetStateManager} from '../assets/AssetStateManager.sol';
 
 /**
  * @title Main interaction point with Yeti protocol. Implementation contract initialized via {UpgradeableProxy}.
@@ -32,17 +35,41 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         addressesProvider = provider;
     }
 
-    function createNewAsset(address asset, address lpToken) external override onlyAssetPoolManager {
+    function deposit(
+        address asset,
+        uint256 amount,
+        address interestReceiver
+    ) public {
+        require(amount > 0, 'Yeti: Amount cannot be 0');
+        DataTypesYeti.PoolAssetData storage poolAsset = _assets[asset];
+        // TODO update liquidity, interest rates
+
+        AssetStateManager.updateRates(poolAsset, asset, amount, 0);
+        address yToken = poolAsset.yetiToken;
+
+        IERC20(asset).transferFrom(interestReceiver, yToken, amount);
+        IYToken(yToken).mint(interestReceiver, amount);
+
+        emit Deposit(asset, interestReceiver, amount);
+    }
+
+    function createNewAsset(
+        address asset,
+        address lpToken,
+        address assetManagerAddress
+    ) external override onlyAssetPoolManager {
         require(_assets[asset].yetiToken == address(0), 'Yeti: Asset has been already created');
-        DataTypesYeti.PoolAssetData memory data = DataTypesYeti.PoolAssetData({
-            id : _totalAssets++,
-            yetiToken : lpToken
-        });
-        _assets[asset] = data;
+        DataTypesYeti.PoolAssetData storage newAsset = _assets[asset];
+        newAsset.id = _totalAssets++;
+        newAsset.yetiToken = lpToken;
 
         _assetsList[_totalAssets - 1] = asset;
 
         emit AssetCreated(asset, lpToken);
+    }
+
+    function setAssetConfig(address asset, DataTypesYeti.PoolAssetConfig memory newConfig) public override onlyAssetPoolManager {
+        _assets[asset].config = newConfig;
     }
 
     function getAsset(address underlying) external view override returns (DataTypesYeti.PoolAssetData memory) {
@@ -59,6 +86,21 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
 
         return result;
     }
+
+//    // TODO move to lib
+//    function _setExchangeRateInternal(IERC20 underlying, DataTypesYeti.PoolAssetData storage asset) internal returns (uint256) {
+//        uint256 exchangeRate;
+//        IYToken yToken = IYToken(asset.yetiToken);
+//
+//        if (yToken.totalSupply() == 0) {
+//            asset.currentExchangeRate = 1;
+//        } else {
+//            uint256 totalUnderlyingAvailable = underlying.balanceOf(asset.yetiToken);
+//            uint256 totalBorrows = yToken.totalBorrows();
+//            asset.currentExchangeRate = (totalUnderlyingAvailable + totalBorrows) / yToken.totalSupply();
+//        }
+//        return asset.currentExchangeRate;
+//    }
 
     function _onlyAssetPoolManager() internal view {
         require(
