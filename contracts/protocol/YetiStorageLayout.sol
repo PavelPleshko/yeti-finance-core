@@ -18,5 +18,7 @@ contract YetiStorageLayout {
 
     mapping(uint256 => address) internal _assetsList;
 
+    mapping(address => DataTypesYeti.AccountData) internal _accounts;
+
     uint256 internal _totalAssets;
 }

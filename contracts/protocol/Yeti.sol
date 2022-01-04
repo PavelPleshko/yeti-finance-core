@@ -8,7 +8,7 @@ import "../registry/IAddressesProvider.sol";
 import "../shared/VersionedInit.sol";
 import "./IYeti.sol";
 import {DataTypesYeti} from './DataTypesYeti.sol';
-import {IYToken} from '../tokens/IYToken.sol';
+import '../tokens/IYToken.sol';
 import {AssetStateManager} from '../assets/AssetStateManager.sol';
 
 /**
@@ -38,7 +38,8 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
     function deposit(
         address asset,
         uint256 amount,
-        address interestReceiver
+        address interestReceiver,
+        bool lockAsCollateral
     ) public {
         require(amount > 0, 'Yeti: Amount cannot be 0');
         DataTypesYeti.PoolAssetData storage poolAsset = _assets[asset];
@@ -51,6 +52,35 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         IYToken(yToken).mint(interestReceiver, amount);
 
         emit Deposit(asset, interestReceiver, amount);
+
+        if (lockAsCollateral) {
+            lockCollateral(asset, amount);
+        }
+    }
+
+    function lockCollateral (address asset, uint256 amount) public override {
+        DataTypesYeti.PoolAssetData memory assetPool = _assets[asset];
+
+        DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
+        uint256 userBalance = IYToken(assetPool.yetiToken).balanceOf(msg.sender);
+        uint256 availableToLock = userBalance == 0 ? 0 : userBalance - accountData.assetsLocked[asset];
+        require(availableToLock >= amount, 'Yeti: Amount to lock exceeds the available free balance for asset.');
+
+        accountData.assetsLocked[asset] = accountData.assetsLocked[asset] + amount;
+
+        emit CollateralStatusChanged(asset, true, userBalance, msg.sender);
+    }
+
+    function unlockCollateral (address asset, uint256 amount) public override {
+        DataTypesYeti.PoolAssetData memory assetPool = _assets[asset];
+
+        DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
+        uint256 availableToUnlock = accountData.assetsLocked[asset];
+        require(availableToUnlock >= amount, 'Yeti: Amount to unlock exceeds the locked amount for asset.');
+
+        accountData.assetsLocked[asset] = accountData.assetsLocked[asset] - amount;
+
+        emit CollateralStatusChanged(asset, false, amount, msg.sender);
     }
 
     function createNewAsset(
@@ -74,6 +104,18 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
 
     function getAsset(address underlying) external view override returns (DataTypesYeti.PoolAssetData memory) {
         return _assets[underlying];
+    }
+
+    function getAccountCollateralState(address account) external view override returns (CollateralEntry[] memory) {
+        mapping(address => uint256) storage accountCollateralInfo = _accounts[account].assetsLocked;
+
+        CollateralEntry[] memory result = new CollateralEntry[](_totalAssets);
+        for (uint256 i = 0; i < _totalAssets; i++) {
+            address assetAddress = _assetsList[i];
+            result[i] = CollateralEntry(assetAddress, accountCollateralInfo[assetAddress]);
+        }
+
+        return result;
     }
 
     function getAllAssets() external view override returns (DataTypesYeti.PoolAssetData[] memory) {

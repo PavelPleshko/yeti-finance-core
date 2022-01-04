@@ -9,7 +9,7 @@ wrapInEnv('Deposit', testEnv => {
     it('should not allow deposit operations with 0 amount', async () => {
         const { addressesProvider, USDC } = testEnv.contracts;
         const lendingProtocol = (await getInterfaceAtAddress(await addressesProvider.getMarketProtocol(), YetiContracts.Yeti)());
-        await expect(lendingProtocol.deposit(USDC.address, 0, testEnv.deployer)).to.be.revertedWith('Yeti: Amount cannot be 0');
+        await expect(lendingProtocol.deposit(USDC.address, 0, testEnv.deployer, false)).to.be.revertedWith('Yeti: Amount cannot be 0');
     });
 
     it('should transfer LP tokens to liquidity provider and deposit tokens to YToken', async () => {
@@ -23,7 +23,7 @@ wrapInEnv('Deposit', testEnv => {
         await waitForTransaction(await USDC.mint(amountParsed, { from: signer.address }));
         await waitForTransaction(await USDC.approve(lendingProtocol.address, amountParsed, { from: signer.address }));
 
-        const tx = await waitForTransaction(await lendingProtocol.deposit(USDC.address, amountParsed, signer.address));
+        const tx = await waitForTransaction(await lendingProtocol.deposit(USDC.address, amountParsed, signer.address, false));
 
         expect(await USDC.balanceOf(assetsStorage.address)).to.be.equal(amountParsed);
         expect(await assetsStorage.balanceOf(signer.address)).to.be.equal(amountParsed);

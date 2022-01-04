@@ -13,4 +13,6 @@ interface IYToken is IERC20 {
     function accruedFees() external view returns(uint256);
 
     function totalBorrows() external view returns(uint256);
+
+//    function balanceOf(address account) external view returns (uint256);
 }

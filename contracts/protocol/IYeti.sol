@@ -10,6 +10,12 @@ import {DataTypesYeti} from './DataTypesYeti.sol';
  * @author YetiCORP
  */
 interface IYeti {
+
+    struct CollateralEntry {
+        address asset;
+        uint256 amount;
+    }
+
     event AssetCreated(address indexed asset, address token);
 
     event Deposit(
@@ -18,15 +24,28 @@ interface IYeti {
         uint256 amount
     );
 
+    event CollateralStatusChanged(
+        address indexed asset,
+        bool isLocked,
+        uint256 amount,
+        address user
+    );
+
     function createNewAsset(
         address asset,
         address lpToken,
         address assetManagerAddress
     ) external;
 
+    function lockCollateral (address asset, uint256 amount) external;
+
+    function unlockCollateral (address asset, uint256 amount) external;
+
     function setAssetConfig(address asset, DataTypesYeti.PoolAssetConfig memory newConfig) external;
 
     function getAsset(address underlying) external view returns (DataTypesYeti.PoolAssetData memory);
+
+    function getAccountCollateralState(address account) external view returns (CollateralEntry[] memory);
 
     function getAllAssets() external view returns (DataTypesYeti.PoolAssetData[] memory);
 }

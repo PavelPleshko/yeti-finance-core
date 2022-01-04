@@ -16,6 +16,7 @@ import { DatabaseBase } from '../../utils/deploy/database/database.base';
 import { deployYetiTokenImplementation } from '../../utils/deploy/tokens';
 import { getDependencyByKey } from '../../utils/env/ioc';
 import { configureAssets, initAssets } from '../../utils/initialization/init-assets';
+import { DEV_RE } from '../../utils/misc';
 import { deployTokenMocks } from './mock-tokens';
 
 export interface TestEnv {
@@ -93,8 +94,36 @@ before(async () => {
     await createTestEnv(owner);
 });
 
+let buidlerevmSnapshotId: string = '0x1';
+const setBuidlerevmSnapshotId = (id: string) => {
+    buidlerevmSnapshotId = id;
+};
+
+export const evmSnapshot = async () => await DEV_RE.ethers.provider.send('evm_snapshot', []);
+
+export const evmRevert = async (id: string) => DEV_RE.ethers.provider.send('evm_revert', [id]);
+
+const setSnapshot = async () => {
+    setBuidlerevmSnapshotId(await evmSnapshot());
+};
+
+const revertHead = async () => {
+    await evmRevert(buidlerevmSnapshotId);
+};
+
 export function wrapInEnv (name: string, tests: (testEnv: Readonly<TestEnv>) => void) {
     describe(name, () => {
+        // this is required for tests not to step on each other's toes
+        // we record the id where snapshot is done in each suite and clean up afterwards
+        // so next set of tests is free from side-effects from the current suite
+        before(async () => {
+            await setSnapshot();
+        });
+
         tests(testEnv);
+
+        after(async () => {
+            await revertHead();
+        });
     });
 }

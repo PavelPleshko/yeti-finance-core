@@ -17,4 +17,8 @@ library DataTypesYeti {
 
         PoolAssetConfig config;
     }
+
+    struct AccountData {
+        mapping(address => uint256) assetsLocked;
+    }
 }
