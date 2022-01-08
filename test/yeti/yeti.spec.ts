@@ -15,7 +15,7 @@ wrapInEnv('Lock collateral', testEnv => {
     });
 
     it('should not lock collateral if user\'s balance for this token is empty', async () => {
-        const { USDC, addressesProvider } = testEnv.contracts;
+        const { USDC } = testEnv.contracts;
 
         await expect(marketProtocol.lockCollateral(USDC.address, BigNumber.from(300)))
             .to.be.revertedWith('Yeti: Amount to lock exceeds the available free balance for asset.');
@@ -29,7 +29,7 @@ wrapInEnv('Lock collateral', testEnv => {
         await USDC.mint(lessThanLockAmount);
         await USDC.approve(marketProtocol.address, lessThanLockAmount);
 
-        const depositTx = await marketProtocol.deposit(USDC.address, lessThanLockAmount, testEnv.deployer, false);
+        await marketProtocol.deposit(USDC.address, lessThanLockAmount, testEnv.deployer, false);
 
         await expect(marketProtocol.lockCollateral(USDC.address, toLockAmount))
             .to.be.revertedWith('Yeti: Amount to lock exceeds the available free balance for asset.');

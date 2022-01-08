@@ -1,6 +1,4 @@
-import { getSigners } from '@nomiclabs/hardhat-ethers/internal/helpers';
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
-import { Contract } from 'ethers';
 import {
     AddressesProvider,
     AddressesProvider__factory,
@@ -8,6 +6,10 @@ import {
     AssetPoolManager__factory,
     ERC20Mock,
     ERC20Mock__factory,
+    FeedRegistryInterfaceMock,
+    FeedRegistryInterfaceMock__factory,
+    PriceFeedRouter,
+    PriceFeedRouter__factory,
     Yeti,
     Yeti__factory,
     YetiMockUpgrade,
@@ -26,6 +28,8 @@ export const enum YetiContracts {
     AssetPoolManager = 'AssetPoolManager',
     YToken = 'YToken',
     ERC20Mock = 'ERC20Mock',
+    FeedRegistryMock = 'FeedRegistryInterfaceMock',
+    PriceFeedRouter = 'PriceFeedRouter',
 }
 
 export const contractTypeToFactory = {
@@ -35,6 +39,8 @@ export const contractTypeToFactory = {
     [YetiContracts.AssetPoolManager]: AssetPoolManager__factory,
     [YetiContracts.YToken]: YToken__factory,
     [YetiContracts.ERC20Mock]: ERC20Mock__factory,
+    [YetiContracts.FeedRegistryMock]: FeedRegistryInterfaceMock__factory,
+    [YetiContracts.PriceFeedRouter]: PriceFeedRouter__factory,
 };
 
 export interface ContractTypeToContractInterface {
@@ -44,6 +50,8 @@ export interface ContractTypeToContractInterface {
     [YetiContracts.AssetPoolManager]: AssetPoolManager,
     [YetiContracts.YToken]: YToken,
     [YetiContracts.ERC20Mock]: ERC20Mock,
+    [YetiContracts.FeedRegistryMock]: FeedRegistryInterfaceMock,
+    [YetiContracts.PriceFeedRouter]: PriceFeedRouter,
 }
 
 export type ConnectableFactory<T extends YetiContracts> = (connectAs?: SignerWithAddress) => Promise<ContractTypeToContractInterface[T]>;
@@ -52,7 +60,6 @@ export const getInterfaceAtAddress = <T extends YetiContracts> (
     address: string, contractType: T,
 ): ConnectableFactory<T> => {
     const factory = contractTypeToFactory[contractType];
-    // const fallbackSigner =
 
     return (async (connectAs?: SignerWithAddress) => {
         const signer = connectAs ? connectAs : (await getSignerAccounts())[0];

@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { Contract, ContractReceipt, ContractTransaction, Event as LogEvent } from 'ethers';
-import { AddressesProvider, AssetPoolManager, ERC20Mock, Yeti, YToken } from '../typechain';
+import { AddressesProvider, AssetPoolManager, ERC20Mock, PriceFeedRouter, Yeti, YToken } from '../typechain';
 import { YetiContracts } from './contract-factories';
 import { DatabaseBase } from './deploy/database/database.base';
 import { getDependencyByKey } from './env/ioc';
@@ -16,6 +16,10 @@ export const deployAddressesProvider = async (as?: SignerWithAddress): Promise<A
 
 export const deployAssetPoolManager = async (as?: SignerWithAddress): Promise<AssetPoolManager> => {
     return await deployContract<AssetPoolManager>(YetiContracts.AssetPoolManager, [], as);
+};
+
+export const deployPriceFeed = async (as?: SignerWithAddress, args: any[] = []): Promise<PriceFeedRouter> => {
+    return await deployContract<PriceFeedRouter>(YetiContracts.PriceFeedRouter, args, as);
 };
 
 /**

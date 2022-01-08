@@ -1,3 +1,5 @@
+import { constants } from 'ethers';
+
 import { YetiContracts } from '../contract-factories';
 import { eEthereumNetwork } from './networks';
 import { AssetConfig, LendingPoolAssets } from './types';
@@ -7,6 +9,7 @@ export interface ProtocolConfig<AssetSymbol extends string = string> {
     assetsConfig: Record<AssetSymbol, AssetConfig>;
     envConfig: Record<eEthereumNetwork, {
         inMemoryDb: boolean;
+        priceFeedAddress: string;
     }>;
 }
 
@@ -34,9 +37,11 @@ export default {
     envConfig: {
         [eEthereumNetwork.main]: {
             inMemoryDb: false,
+            priceFeedAddress: '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
         },
         [eEthereumNetwork.hardhat]: {
             inMemoryDb: true,
+            priceFeedAddress: constants.AddressZero,
         }
     }
 } as ProtocolConfig<LendingPoolAssets>;
