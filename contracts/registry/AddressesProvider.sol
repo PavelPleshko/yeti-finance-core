@@ -50,7 +50,7 @@ contract AddressesProvider is Ownable, IAddressesProvider {
     }
 
     function setPriceFeed(address _impl) external override onlyOwner {
-        _updateImplementation(PRICE_FEED, _impl);
+        _addresses[PRICE_FEED] = _impl;
         emit PriceFeedUpdated(_impl);
     }
 

@@ -74,6 +74,7 @@ const createTestEnv = async (owner: Signer) => {
 
     const feedRegistryMock = await persistentDeploy(await deployContract<FeedRegistryInterfaceMock>(YetiContracts.FeedRegistryMock), YetiContracts.FeedRegistryMock);
     const priceFeedRouter = await persistentDeploy(await deployPriceFeed(undefined, [ feedRegistryMock.address ]), YetiContracts.PriceFeedRouter);
+    await addressesProvider.setPriceFeed(priceFeedRouter.address);
 
     testEnv.deployer = deployer;
     testEnv.contracts = {

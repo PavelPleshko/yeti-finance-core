@@ -51,6 +51,6 @@ contract SnowballInterestStrategy is IAssetInterestStrategy {
         if (totalDebt == 0) {
             return 0;
         }
-        return totalDebt / (availableLiquidity + totalDebt);
+        return FloatMath.rDiv(totalDebt, availableLiquidity + totalDebt);
     }
 }

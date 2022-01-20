@@ -86,3 +86,9 @@ export const getPersistedContract = async <T extends YetiContracts> (contractId:
     const contractAddress = await getContractAddress(contractId);
     return getInterfaceAtAddress(contractAddress, contractId);
 };
+
+export const getMarketProtocol = async (as?: SignerWithAddress): Promise<Yeti> => {
+    const addressesProvider = await(await getPersistedContract(YetiContracts.AddressesProvider))();
+    const marketProtocol = await addressesProvider.getMarketProtocol();
+    return getInterfaceAtAddress(marketProtocol, YetiContracts.Yeti)(as);
+}

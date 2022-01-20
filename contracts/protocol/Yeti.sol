@@ -13,7 +13,7 @@ import {AssetStateManager} from '../assets/AssetStateManager.sol';
 import {IPriceFeedRouter} from '../price-oracle/IPriceFeedRouter.sol';
 import {OpsValidationLib} from "./OpsValidationLib.sol";
 import "../tokens/IDebtTrackerToken.sol";
-
+import "../math/FloatMath.sol";
 /**
  * @title Main interaction point with Yeti protocol. Implementation contract initialized via {UpgradeableProxy}.
  * {AddressesProvider} contract address is provided in initializer function, so it has access to the all components
@@ -135,6 +135,7 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         newAsset.id = _totalAssets++;
         newAsset.yetiToken = lpTokenProxy;
         newAsset.debtTrackerToken = debtTokenProxy;
+        newAsset.currentBorrowRate = FloatMath.ray();
         newAsset.config.interestStrategy = interestRateLogic;
 
         _assetsList[_totalAssets - 1] = asset;

@@ -4,6 +4,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
 import "openzeppelin-solidity/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "../shared/VersionedInit.sol";
 import "./IDebtTrackerToken.sol";
+import "../math/FloatMath.sol";
 
 
 contract DebtTrackerToken is IDebtTrackerToken, VersionedInit, ERC20('DebtTracker_TOKEN', 'D'), UUPSUpgradeable {
@@ -62,7 +63,7 @@ contract DebtTrackerToken is IDebtTrackerToken, VersionedInit, ERC20('DebtTracke
         uint256 amount,
         uint256 borrowRate
     ) external override onlyAssetPool {
-        uint256 scaledBorrow = amount / borrowRate;
+        uint256 scaledBorrow = FloatMath.rDiv(amount, borrowRate);
         require(scaledBorrow > 0, 'DebtTrackerToken: Mint amount should be > 0');
         _mint(account, scaledBorrow);
 
