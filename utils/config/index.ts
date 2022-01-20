@@ -1,6 +1,9 @@
+import BigNumber from 'bignumber.js';
 import { constants } from 'ethers';
+import { rayFactor } from '../constants';
 
 import { YetiContracts } from '../contract-factories';
+import { stableStrategy, stableStrategy2 } from './interest-strategies';
 import { eEthereumNetwork } from './networks';
 import { AssetConfig, LendingPoolAssets } from './types';
 
@@ -25,13 +28,15 @@ export default {
             decimals: 6,
             yetiTokenContract: YetiContracts.YToken,
             borrowingAvailable: true,
-            commissionFactor: '5',
+            commissionFactor: new BigNumber(0.05).multipliedBy(rayFactor).toFixed(),
+            interestStrategy: stableStrategy,
         },
         [LendingPoolAssets.DAI]: {
             decimals: 18,
             yetiTokenContract: YetiContracts.YToken,
             borrowingAvailable: true,
-            commissionFactor: '7',
+            commissionFactor: new BigNumber(0.07).multipliedBy(rayFactor).toFixed(),
+            interestStrategy: stableStrategy2,
         }
     },
     envConfig: {

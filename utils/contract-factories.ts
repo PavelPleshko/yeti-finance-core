@@ -3,13 +3,15 @@ import {
     AddressesProvider,
     AddressesProvider__factory,
     AssetPoolManager,
-    AssetPoolManager__factory,
+    AssetPoolManager__factory, DebtTrackerToken, DebtTrackerToken__factory,
     ERC20Mock,
     ERC20Mock__factory,
     FeedRegistryInterfaceMock,
     FeedRegistryInterfaceMock__factory,
     PriceFeedRouter,
     PriceFeedRouter__factory,
+    SnowballInterestStrategy,
+    SnowballInterestStrategy__factory,
     Yeti,
     Yeti__factory,
     YetiMockUpgrade,
@@ -27,9 +29,11 @@ export const enum YetiContracts {
     AddressesProvider = 'AddressesProvider',
     AssetPoolManager = 'AssetPoolManager',
     YToken = 'YToken',
+    DebtToken = 'DebtTrackerToken',
     ERC20Mock = 'ERC20Mock',
     FeedRegistryMock = 'FeedRegistryInterfaceMock',
     PriceFeedRouter = 'PriceFeedRouter',
+    SnowballInterestStrategy = 'SnowballInterestStrategy',
 }
 
 export const contractTypeToFactory = {
@@ -38,9 +42,11 @@ export const contractTypeToFactory = {
     [YetiContracts.AddressesProvider]: AddressesProvider__factory,
     [YetiContracts.AssetPoolManager]: AssetPoolManager__factory,
     [YetiContracts.YToken]: YToken__factory,
+    [YetiContracts.DebtToken]: DebtTrackerToken__factory,
     [YetiContracts.ERC20Mock]: ERC20Mock__factory,
     [YetiContracts.FeedRegistryMock]: FeedRegistryInterfaceMock__factory,
     [YetiContracts.PriceFeedRouter]: PriceFeedRouter__factory,
+    [YetiContracts.SnowballInterestStrategy]: SnowballInterestStrategy__factory,
 };
 
 export interface ContractTypeToContractInterface {
@@ -49,9 +55,11 @@ export interface ContractTypeToContractInterface {
     [YetiContracts.AddressesProvider]: AddressesProvider,
     [YetiContracts.AssetPoolManager]: AssetPoolManager,
     [YetiContracts.YToken]: YToken,
+    [YetiContracts.DebtToken]: DebtTrackerToken,
     [YetiContracts.ERC20Mock]: ERC20Mock,
     [YetiContracts.FeedRegistryMock]: FeedRegistryInterfaceMock,
     [YetiContracts.PriceFeedRouter]: PriceFeedRouter,
+    [YetiContracts.SnowballInterestStrategy]: SnowballInterestStrategy,
 }
 
 export type ConnectableFactory<T extends YetiContracts> = (connectAs?: SignerWithAddress) => Promise<ContractTypeToContractInterface[T]>;

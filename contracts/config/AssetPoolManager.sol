@@ -16,11 +16,14 @@ contract AssetPoolManager is VersionedInit, Ownable, UUPSUpgradeable {
         address yTokenImpl;
         string yTokenName;
         string yTokenSymbol;
-        uint8 underlyingDecimals;
+        address debtTokenImpl;
+        string debtTokenName;
+        string debtTokenSymbol;
         address underlying;
-        address piggyBank;
         string underlyingName;
-        address assetLogicAddress;
+        uint8 underlyingDecimals;
+        address piggyBank;
+        address interestRateLogic;
         bytes params;
     }
 
@@ -55,20 +58,34 @@ contract AssetPoolManager is VersionedInit, Ownable, UUPSUpgradeable {
             )
         );
 
+        address debtTokenProxy = _initializeTokenWithProxy(
+            input.debtTokenImpl,
+            abi.encodeWithSignature(
+                'initialize(address,address,uint8,string,string)',
+                input.underlying, address(marketProtocol),
+                input.underlyingDecimals, input.debtTokenName, input.debtTokenSymbol
+            )
+        );
+
         marketProtocol.createNewAsset(
             input.underlying,
             yetiTokenProxy,
-            input.assetLogicAddress
+            debtTokenProxy,
+            input.interestRateLogic
         );
+
+        DataTypesYeti.PoolAssetData memory newAssetPool = marketProtocol.getAsset(input.underlying);
+        newAssetPool.config.currencyDecimals = input.underlyingDecimals;
+        marketProtocol.setAssetConfig(input.underlying, newAssetPool.config);
     }
 
     function setAssetCommission(address underlying, uint256 commissionFactor) public {
 
         IYeti marketProtocol = IYeti(addressesProvider.getMarketProtocol());
-        DataTypesYeti.PoolAssetConfig memory config = marketProtocol.getAsset(underlying).config;
+        DataTypesYeti.PoolAssetData memory assetPool = marketProtocol.getAsset(underlying);
 
-        config.commissionFactor = commissionFactor;
-        marketProtocol.setAssetConfig(underlying, config);
+        assetPool.config.commissionFactor = commissionFactor;
+        marketProtocol.setAssetConfig(underlying, assetPool.config);
 
         emit AssetCommissionChanged(underlying, commissionFactor);
     }

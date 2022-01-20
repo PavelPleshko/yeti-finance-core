@@ -11,10 +11,13 @@ wrapInEnv('Protocol Configuration', testEnv => {
         yTokenImpl: string;
         yTokenName: string;
         yTokenSymbol: string;
+        debtTokenImpl: string;
+        debtTokenName: string;
+        debtTokenSymbol: string;
         underlyingDecimals: BigNumberish;
         underlying: string;
         piggyBank: string;
-        assetLogicAddress: string;
+        interestRateLogic: string;
         underlyingName: string;
         params: BytesLike;
     };
@@ -24,10 +27,13 @@ wrapInEnv('Protocol Configuration', testEnv => {
             yTokenImpl: testEnv.contracts.yTokenImpl.address,
             yTokenName: 'YetiMockToken',
             yTokenSymbol: 'Y',
+            debtTokenImpl: testEnv.contracts.debtTokenImpl.address,
+            debtTokenName: 'DebtToken',
+            debtTokenSymbol: 'D',
             underlyingDecimals: 18,
             underlying: (await deployERC20MockToken([ 'Random token', 'RDM', 18 ])).address,
             underlyingName: 'Random token',
-            assetLogicAddress: constants.AddressZero,
+            interestRateLogic: constants.AddressZero,
             piggyBank: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
             params: utils.toUtf8Bytes('initialize(address)'),
         };
@@ -40,7 +46,12 @@ wrapInEnv('Protocol Configuration', testEnv => {
         const connectableYeti = (await getInterfaceAtAddress(await addressesProvider.getMarketProtocol(), YetiContracts.Yeti)(owner));
 
         await expect(connectableYeti
-            .createNewAsset(mockInitPositionData.yTokenImpl, mockInitPositionData.underlying, mockInitPositionData.assetLogicAddress))
+            .createNewAsset(
+                mockInitPositionData.yTokenImpl,
+                mockInitPositionData.underlying,
+                mockInitPositionData.debtTokenImpl,
+                mockInitPositionData.interestRateLogic,
+            ))
             .to.be.revertedWith('Yeti: Can be called only by AssetPoolManager');
     });
 

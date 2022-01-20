@@ -11,16 +11,17 @@ contract AddressesProvider is Ownable, IAddressesProvider {
     mapping(bytes32 => address) private _addresses;
 
     bytes32 private constant MARKET_PROTOCOL = 'MARKET_PROTOCOL';
+    bytes32 private constant PRICE_FEED = 'PRICE_FEED';
     bytes32 private constant ASSET_POOL_MANAGER = 'ASSET_POOL_MANAGER';
     bytes32 private constant MARKET_ADMIN = 'MARKET_ADMIN';
 
-    function setMarketAdmin (address admin) external override onlyOwner {
+    function setMarketAdmin(address admin) external override onlyOwner {
         require(admin != address(0), 'Admin must not be zero address');
         _addresses[MARKET_ADMIN] = admin;
         emit AdminChanged(admin);
     }
 
-    function getMarketAdmin () external view override returns (address) {
+    function getMarketAdmin() external view override returns (address) {
         return _addresses[MARKET_ADMIN];
     }
 
@@ -42,6 +43,15 @@ contract AddressesProvider is Ownable, IAddressesProvider {
     function setMarketProtocol(address _impl) external override onlyOwner {
         _updateImplementation(MARKET_PROTOCOL, _impl);
         emit MarketProtocolUpdated(_impl);
+    }
+
+    function getPriceFeed() external view override returns (address){
+        return _addresses[PRICE_FEED];
+    }
+
+    function setPriceFeed(address _impl) external override onlyOwner {
+        _updateImplementation(PRICE_FEED, _impl);
+        emit PriceFeedUpdated(_impl);
     }
 
     function getAssetPoolManager() external view override returns (address){

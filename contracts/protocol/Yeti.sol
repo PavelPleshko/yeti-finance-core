@@ -10,6 +10,9 @@ import "./IYeti.sol";
 import {DataTypesYeti} from './DataTypesYeti.sol';
 import '../tokens/IYToken.sol';
 import {AssetStateManager} from '../assets/AssetStateManager.sol';
+import {IPriceFeedRouter} from '../price-oracle/IPriceFeedRouter.sol';
+import {OpsValidationLib} from "./OpsValidationLib.sol";
+import "../tokens/IDebtTrackerToken.sol";
 
 /**
  * @title Main interaction point with Yeti protocol. Implementation contract initialized via {UpgradeableProxy}.
@@ -40,10 +43,9 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         uint256 amount,
         address interestReceiver,
         bool lockAsCollateral
-    ) public {
+    ) public override {
         require(amount > 0, 'Yeti: Amount cannot be 0');
         DataTypesYeti.PoolAssetData storage poolAsset = _assets[asset];
-        // TODO update liquidity, interest rates
 
         AssetStateManager.updateRates(poolAsset, asset, amount, 0);
         address yToken = poolAsset.yetiToken;
@@ -58,7 +60,46 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         }
     }
 
-    function lockCollateral (address asset, uint256 amount) public override {
+    function borrow(
+        address asset,
+        uint256 amount
+    ) public override {
+        DataTypesYeti.PoolAssetData storage assetPool = _assets[asset];
+        DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
+
+        IPriceFeedRouter priceFeedRouter = IPriceFeedRouter(addressesProvider.getPriceFeed());
+
+        // oracle should estimate how much in ETH borrower wants to borrow
+        uint256 priceInETH = (uint256(priceFeedRouter.getAssetPriceETH(asset)) * amount) / (10 ** assetPool.config.currencyDecimals);
+
+        // validate if the operation can be performed given new state
+        OpsValidationLib.validateBorrowOperation(
+            asset,
+            amount,
+            priceInETH,
+            assetPool,
+            accountData
+        );
+
+        // mint debt tokens
+        IDebtTrackerToken(assetPool.debtTrackerToken).mint(msg.sender, amount, assetPool.currentBorrowRate);
+
+        // update liquidity, borrow rates
+        AssetStateManager.updateRates(assetPool, asset, amount, 0);
+
+        // issue loan
+        IYToken(assetPool.yetiToken).transferUnderlyingAsset(msg.sender, amount);
+
+        // emit borrow event
+        emit Borrow(
+            asset,
+            msg.sender,
+            amount,
+            assetPool.currentBorrowRate
+        );
+    }
+
+    function lockCollateral(address asset, uint256 amount) public override {
         DataTypesYeti.PoolAssetData memory assetPool = _assets[asset];
 
         DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
@@ -71,7 +112,7 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         emit CollateralStatusChanged(asset, true, userBalance, msg.sender);
     }
 
-    function unlockCollateral (address asset, uint256 amount) public override {
+    function unlockCollateral(address asset, uint256 amount) public override {
         DataTypesYeti.PoolAssetData memory assetPool = _assets[asset];
 
         DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
@@ -85,17 +126,20 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
 
     function createNewAsset(
         address asset,
-        address lpToken,
-        address assetManagerAddress
+        address lpTokenProxy,
+        address debtTokenProxy,
+        address interestRateLogic
     ) external override onlyAssetPoolManager {
         require(_assets[asset].yetiToken == address(0), 'Yeti: Asset has been already created');
         DataTypesYeti.PoolAssetData storage newAsset = _assets[asset];
         newAsset.id = _totalAssets++;
-        newAsset.yetiToken = lpToken;
+        newAsset.yetiToken = lpTokenProxy;
+        newAsset.debtTrackerToken = debtTokenProxy;
+        newAsset.config.interestStrategy = interestRateLogic;
 
         _assetsList[_totalAssets - 1] = asset;
 
-        emit AssetCreated(asset, lpToken);
+        emit AssetCreated(asset, lpTokenProxy, debtTokenProxy);
     }
 
     function setAssetConfig(address asset, DataTypesYeti.PoolAssetConfig memory newConfig) public override onlyAssetPoolManager {
@@ -128,21 +172,6 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
 
         return result;
     }
-
-//    // TODO move to lib
-//    function _setExchangeRateInternal(IERC20 underlying, DataTypesYeti.PoolAssetData storage asset) internal returns (uint256) {
-//        uint256 exchangeRate;
-//        IYToken yToken = IYToken(asset.yetiToken);
-//
-//        if (yToken.totalSupply() == 0) {
-//            asset.currentExchangeRate = 1;
-//        } else {
-//            uint256 totalUnderlyingAvailable = underlying.balanceOf(asset.yetiToken);
-//            uint256 totalBorrows = yToken.totalBorrows();
-//            asset.currentExchangeRate = (totalUnderlyingAvailable + totalBorrows) / yToken.totalSupply();
-//        }
-//        return asset.currentExchangeRate;
-//    }
 
     function _onlyAssetPoolManager() internal view {
         require(

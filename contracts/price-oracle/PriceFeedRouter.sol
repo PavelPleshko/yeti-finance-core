@@ -24,6 +24,7 @@ contract PriceFeedRouter is IPriceFeedRouter {
    */
     function getPrice(address asset, address quote) public override view returns (int256) {
         (,int256 price,,,) = registry.latestRoundData(asset, quote);
+        require(price > 0, 'PriceFeedRouter: Asset price is not known or 0.');
         return price;
     }
 }

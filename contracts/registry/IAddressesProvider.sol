@@ -4,6 +4,7 @@ interface IAddressesProvider {
     event AddressChanged(bytes32 forId, address newAddress);
     event AdminChanged(address newAddress);
     event MarketProtocolUpdated(address implementation);
+    event PriceFeedUpdated(address implementation);
     event AssetPoolManagerUpdated(address implementation);
     event ProxyCreated(bytes32 forId, address proxyAddress);
 
@@ -22,6 +23,10 @@ interface IAddressesProvider {
     function getMarketProtocol() external view returns(address);
 
     function setMarketProtocol(address _impl) external;
+
+    function getPriceFeed() external view returns (address);
+
+    function setPriceFeed(address _impl) external;
 
     function getAssetPoolManager() external view returns(address);
 

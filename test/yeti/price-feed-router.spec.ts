@@ -1,6 +1,6 @@
 import { expect} from 'chai';
+import { etherFactor } from '../../utils/constants';
 
-import { oneEther } from '../setup/asset-prices';
 import { wrapInEnv } from '../setup/tests-setup.spec';
 
 wrapInEnv('PriceFeedRouter', testEnv => {
@@ -10,7 +10,7 @@ wrapInEnv('PriceFeedRouter', testEnv => {
         const { USDC } = contracts;
         const priceFeed = contracts.feedRegistryMock;
         const priceFeedRouter = contracts.priceFeedRouter;
-        const expectedPrice = oneEther.multipliedBy('0.0033');
+        const expectedPrice = etherFactor.multipliedBy('0.0033');
 
         await priceFeed.setPriceForAsset(USDC.address, expectedPrice.toFixed());
 

@@ -1,9 +1,18 @@
-import { Signer } from 'ethers';
+import { Contract, Signer } from 'ethers';
 import rawBRE from 'hardhat';
-import { AddressesProvider, AssetPoolManager, ERC20Mock, FeedRegistryInterfaceMock, PriceFeedRouter, Yeti, YToken } from '../../typechain';
+import {
+    AddressesProvider,
+    AssetPoolManager,
+    DebtTrackerToken,
+    ERC20Mock,
+    FeedRegistryInterfaceMock, IAssetInterestStrategy,
+    PriceFeedRouter,
+    Yeti,
+    YToken
+} from '../../typechain';
 import protocolConfig, { ProtocolConfig } from '../../utils/config';
 import { TokenIds } from '../../utils/config/tokens';
-import { getConfigurationByNetwork } from '../../utils/config/utils';
+// import { getConfigurationByNetwork } from '../../utils/config/utils';
 import {
     deployAddressesProvider,
     deployAssetPoolManager,
@@ -15,8 +24,7 @@ import {
     waitForTransaction
 } from '../../utils/contract-deploy';
 import { YetiContracts } from '../../utils/contract-factories';
-import { DatabaseBase } from '../../utils/deploy/database/database.base';
-import { deployYetiTokenImplementation } from '../../utils/deploy/tokens';
+import { deployDebtTokenImplementation, deployYetiTokenImplementation } from '../../utils/deploy/tokens';
 import { configureAssets, initAssets } from '../../utils/initialization/init-assets';
 import { DEV_RE } from '../../utils/misc';
 import { setInitialMockPriceFeedForTokens } from './asset-prices';
@@ -30,8 +38,10 @@ export interface TestEnv {
         addressesProvider: AddressesProvider;
         assetsPoolManager: AssetPoolManager;
         yTokenImpl: YToken;
+        debtTokenImpl: DebtTrackerToken;
         feedRegistryMock: FeedRegistryInterfaceMock,
         priceFeedRouter: PriceFeedRouter;
+        interestRateStrategies: {id: string, contract: IAssetInterestStrategy}[];
     } & Record<TokenIds, ERC20Mock>;
 }
 
@@ -44,7 +54,7 @@ const testEnv = {
 const createTestEnv = async (owner: Signer) => {
 
     const config = protocolConfig;
-    const currentNetworkEnvConfig = getConfigurationByNetwork(config.envConfig);
+    // const currentNetworkEnvConfig = getConfigurationByNetwork(config.envConfig);
 
     const deployer = await owner.getAddress();
 
@@ -60,6 +70,7 @@ const createTestEnv = async (owner: Signer) => {
     await waitForTransaction(await addressesProvider.setMarketProtocol(yeti.address));
 
     const yTokenImpl = await persistentDeploy(await deployYetiTokenImplementation(), YetiContracts.YToken);
+    const debtTokenImpl = await persistentDeploy(await deployDebtTokenImplementation(), YetiContracts.DebtToken);
 
     const feedRegistryMock = await persistentDeploy(await deployContract<FeedRegistryInterfaceMock>(YetiContracts.FeedRegistryMock), YetiContracts.FeedRegistryMock);
     const priceFeedRouter = await persistentDeploy(await deployPriceFeed(undefined, [ feedRegistryMock.address ]), YetiContracts.PriceFeedRouter);
@@ -71,6 +82,7 @@ const createTestEnv = async (owner: Signer) => {
         yeti,
         addressesProvider,
         yTokenImpl,
+        debtTokenImpl,
         priceFeedRouter,
         feedRegistryMock,
         ...tokenMocks,
@@ -78,27 +90,30 @@ const createTestEnv = async (owner: Signer) => {
 
     Object.seal(testEnv);
 
-    console.info('===========================================');
-    console.info('Initialized test environment with contracts: ');
-    (Object.keys(testEnv.contracts) as (keyof TestEnv['contracts'])[]).forEach(contractKey => {
-        const contract = testEnv.contracts[contractKey];
-        console.log(contractKey, ' - ', contract.address);
-    });
-    console.info('===========================================');
-
     const tokenAddresses = Object.keys(tokenMocks).reduce((acc, token) => {
         acc[token] = tokenMocks[token].address;
         return acc;
     }, {} as Record<string, string>);
 
     console.log('Deploying asset pools...');
-    await initAssets(config.assetsConfig, tokenAddresses);
+    const { deployedStrategies } = await initAssets(config.assetsConfig, tokenAddresses);
+    testEnv.contracts.interestRateStrategies = Object.keys(deployedStrategies).map(id => ({id, contract: deployedStrategies[id]}));
 
     console.log('Configuring asset pools...');
     await configureAssets(config.assetsConfig, tokenAddresses);
 
     console.log('Setting mock prices for oracle...');
     await setInitialMockPriceFeedForTokens(tokenAddresses);
+
+    console.info('===========================================');
+    console.info('Initialized test environment');
+    console.log(JSON.stringify(testEnv.contracts, (key, value) => {
+        if (value instanceof Contract) {
+            return value.address;
+        }
+        return value;
+    }, 2));
+    console.info('===========================================');
 };
 
 before(async () => {

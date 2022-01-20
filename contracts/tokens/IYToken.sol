@@ -14,5 +14,5 @@ interface IYToken is IERC20 {
 
     function totalBorrows() external view returns(uint256);
 
-//    function balanceOf(address account) external view returns (uint256);
+    function transferUnderlyingAsset(address to, uint256 amount) external;
 }

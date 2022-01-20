@@ -1,22 +1,19 @@
 pragma solidity ^0.8.0;
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
-import {SafeERC20} from "openzeppelin-solidity/contracts/token/ERC20/utils/SafeERC20.sol";
 import "openzeppelin-solidity/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "../shared/VersionedInit.sol";
-import "./IYToken.sol";
+import "./IDebtTrackerToken.sol";
 
-// name and symbol will be set by the LiquidityPoolConfig in initialize function
-// since every underlying token requires its own Yeti token implementation since they overlying:underlying ratio
-// must be 1:1
-contract YToken is IYToken, VersionedInit, ERC20('Yeti_TOKEN', 'Y'), UUPSUpgradeable {
+
+contract DebtTrackerToken is IDebtTrackerToken, VersionedInit, ERC20('DebtTracker_TOKEN', 'D'), UUPSUpgradeable {
 
     event Initialized(
         address underlying,
         address assetPool,
-        uint8 yetiTokenDecimals,
-        string yetiTokenName,
-        string yetiTokenSymbol
+        uint8 debtTokenDecimals,
+        string debtTokenName,
+        string debtTokenSymbol
     );
 
     address private _assetPool;
@@ -24,15 +21,12 @@ contract YToken is IYToken, VersionedInit, ERC20('Yeti_TOKEN', 'Y'), UUPSUpgrade
     string private _name;
     string private _symbol;
     uint8 private _decimals;
-    uint256 private _totalBorrows;
-    uint256 private _accruedFees;
-
 
     // needs to be incremented manually if new implementation needs to be deployed
     uint256 public constant YETI_VERSION = 0x1;
 
     modifier onlyAssetPool {
-        require(msg.sender == _assetPool, 'YToken: Only asset pool can perform this operation.');
+        require(msg.sender == _assetPool, 'DebtTrackerToken: Only asset pool can perform this operation.');
         _;
     }
 
@@ -43,46 +37,36 @@ contract YToken is IYToken, VersionedInit, ERC20('Yeti_TOKEN', 'Y'), UUPSUpgrade
     function initialize(
         address underlying,
         address assetPool,
-        uint8 yetiTokenDecimals,
-        string calldata yetiTokenName,
-        string calldata yetiTokenSymbol
+        uint8 debtTokenDecimals,
+        string calldata debtTokenName,
+        string calldata debtTokenSymbol
     ) external initializer {
 
-        _setName(yetiTokenName);
-        _setSymbol(yetiTokenSymbol);
-        _setDecimals(yetiTokenDecimals);
+        _setName(debtTokenName);
+        _setSymbol(debtTokenSymbol);
+        _setDecimals(debtTokenDecimals);
         _underlying = underlying;
         _assetPool = assetPool;
 
         emit Initialized(
             underlying,
             address(assetPool),
-            yetiTokenDecimals,
-            yetiTokenName,
-            yetiTokenSymbol
+            debtTokenDecimals,
+            debtTokenName,
+            debtTokenSymbol
         );
     }
 
     function mint(
         address account,
-        uint256 amount
+        uint256 amount,
+        uint256 borrowRate
     ) external override onlyAssetPool {
+        uint256 scaledBorrow = amount / borrowRate;
+        require(scaledBorrow > 0, 'DebtTrackerToken: Mint amount should be > 0');
+        _mint(account, scaledBorrow);
 
-        _mint(account, amount);
-        // TODO emit mint event
-    }
-
-    function transferUnderlyingAsset(address to, uint256 amount) external override onlyAssetPool {
-        IERC20 underlyingToken = IERC20(_underlying);
-        SafeERC20.safeTransfer(underlyingToken, to, amount);
-    }
-
-    function accruedFees() external view override returns (uint256) {
-        return _accruedFees;
-    }
-
-    function totalBorrows() external view override returns (uint256) {
-        return _totalBorrows;
+        emit Mint(account, scaledBorrow, borrowRate);
     }
 
     function _setName(string memory newName) internal {
