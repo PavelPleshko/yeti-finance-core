@@ -112,10 +112,16 @@ wrapInEnv('Unlock collateral', testEnv => {
 wrapInEnv('Borrow Validation', testEnv => {
 
     let marketProtocol: Yeti;
+    let liquidityInUSDPool: BigNumber;
+    let USDCFactor: BigNumber;
+    let DAIFactor: BigNumber;
 
     before(async () => {
         const { addressesProvider } = testEnv.contracts;
         marketProtocol = await (getInterfaceAtAddress(await addressesProvider.getMarketProtocol(), YetiContracts.Yeti)());
+        USDCFactor = new BigNumber(10 ** testEnv.config.assetsConfig['USDC'].decimals);
+        DAIFactor = new BigNumber(10 ** testEnv.config.assetsConfig['DAI'].decimals);
+        liquidityInUSDPool = new BigNumber(10).multipliedBy(USDCFactor); // 10 USDC
     });
 
     it('should not allow borrowing without or with collateral value less that requested', async () => {
@@ -123,8 +129,6 @@ wrapInEnv('Borrow Validation', testEnv => {
         const USDUnitPriceInETH = etherFactor.multipliedBy(2);
         const DAIUnitPriceInETH = etherFactor.multipliedBy(4);
         const [ depositor, borrower ] = await getSignerAccounts();
-        const USDCFactor = new BigNumber(10**testEnv.config.assetsConfig['USDC'].decimals);
-        const DAIFactor = new BigNumber(10**testEnv.config.assetsConfig['DAI'].decimals);
         const availableLiquidityUSDC = new BigNumber(10).multipliedBy(USDCFactor); // 10 USDC
 
         await feedRegistryMock.setPriceForAsset(USDC.address, USDUnitPriceInETH.toFixed());
@@ -133,7 +137,7 @@ wrapInEnv('Borrow Validation', testEnv => {
             assetAddress: USDC.address,
             signer: depositor,
             amount: availableLiquidityUSDC.toFixed(),
-            lock: true
+            lock: false
         });
 
 
@@ -162,5 +166,20 @@ wrapInEnv('Borrow Validation', testEnv => {
         });
 
         await marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidityUSDC.toFixed());
+    });
+
+    it('should deny borrow if collateral value < borrowed amount taking into account user debts', async () => {
+        const { USDC } = testEnv.contracts;
+        const [ depositor, borrower ] = await getSignerAccounts();
+
+        await depositAsset({
+            assetAddress: USDC.address,
+            signer: depositor,
+            amount: liquidityInUSDPool.toFixed(),
+            lock: false,
+        });
+
+        await expect(marketProtocol.connect(borrower).borrow(USDC.address, liquidityInUSDPool.toFixed()))
+            .to.be.revertedWith('OpsValidation: Locked collateral is not enough');
     });
 });
