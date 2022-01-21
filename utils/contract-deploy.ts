@@ -1,6 +1,6 @@
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { Contract, ContractReceipt, ContractTransaction, Event as LogEvent } from 'ethers';
-import { AddressesProvider, AssetPoolManager, ERC20Mock, PriceFeedRouter, Yeti, YToken } from '../typechain';
+import { AddressesProvider, AssetPoolManager, ERC20Mock, PriceFeedRouter, SnowballInterestStrategy, Yeti, YToken } from '../typechain';
 import { YetiContracts } from './contract-factories';
 import { DatabaseBase } from './deploy/database/database.base';
 import { getDependencyByKey } from './env/ioc';
@@ -20,6 +20,10 @@ export const deployAssetPoolManager = async (as?: SignerWithAddress): Promise<As
 
 export const deployPriceFeed = async (as?: SignerWithAddress, args: any[] = []): Promise<PriceFeedRouter> => {
     return await deployContract<PriceFeedRouter>(YetiContracts.PriceFeedRouter, args, as);
+};
+
+export const deployInterestStrategy = async (args: any[]): Promise<SnowballInterestStrategy> => {
+    return await deployContract<SnowballInterestStrategy>(YetiContracts.SnowballInterestStrategy, args);
 };
 
 /**
@@ -67,10 +71,10 @@ export const deployERC20MockToken = async (args: [ string, string, number ]): Pr
 };
 
 
-export const persistentDeploy = async <ContractType extends Contract>(instance: ContractType, contractId: YetiContracts): Promise<ContractType> => {
+export const persistentDeploy = async <ContractType extends Contract> (instance: ContractType, contractId: YetiContracts): Promise<ContractType> => {
     await waitForTransaction(instance.deployTransaction);
 
     const db = getDependencyByKey<DatabaseBase>('db');
     await db.set(contractId, instance);
     return instance;
-}
+};

@@ -1,10 +1,12 @@
-import { BigNumber } from 'ethers';
+import { BigNumber } from 'bignumber.js';
 import { expect } from 'chai';
 import { Yeti } from '../../typechain';
+import { etherFactor } from '../../utils/constants';
 
 import { findEventLog, getSignerAccounts, waitForTransaction } from '../../utils/contract-deploy';
 import { getInterfaceAtAddress, YetiContracts } from '../../utils/contract-factories';
 import { wrapInEnv } from '../setup/tests-setup.spec';
+import { depositAsset } from '../test-helpers/deposit';
 
 wrapInEnv('Lock collateral', testEnv => {
     let marketProtocol: Yeti;
@@ -17,21 +19,21 @@ wrapInEnv('Lock collateral', testEnv => {
     it('should not lock collateral if user\'s balance for this token is empty', async () => {
         const { USDC } = testEnv.contracts;
 
-        await expect(marketProtocol.lockCollateral(USDC.address, BigNumber.from(300)))
+        await expect(marketProtocol.lockCollateral(USDC.address, new BigNumber(300).toString()))
             .to.be.revertedWith('Yeti: Amount to lock exceeds the available free balance for asset.');
     });
 
     it('should not lock collateral if user\'s balance for this token is less than passed', async () => {
         const { USDC } = testEnv.contracts;
 
-        const toLockAmount = BigNumber.from(300);
-        const lessThanLockAmount = toLockAmount.sub(1);
+        const toLockAmount = new BigNumber(300);
+        const lessThanLockAmount = toLockAmount.minus(1).toString();
         await USDC.mint(lessThanLockAmount);
         await USDC.approve(marketProtocol.address, lessThanLockAmount);
 
         await marketProtocol.deposit(USDC.address, lessThanLockAmount, testEnv.deployer, false);
 
-        await expect(marketProtocol.lockCollateral(USDC.address, toLockAmount))
+        await expect(marketProtocol.lockCollateral(USDC.address, toLockAmount.toString()))
             .to.be.revertedWith('Yeti: Amount to lock exceeds the available free balance for asset.');
     });
 
@@ -39,7 +41,7 @@ wrapInEnv('Lock collateral', testEnv => {
         const { USDC } = testEnv.contracts;
         const signer = (await getSignerAccounts())[2];
 
-        const toLockAmount = BigNumber.from(300);
+        const toLockAmount = new BigNumber(300).toString();
         await waitForTransaction(await USDC.connect(signer).mint(toLockAmount));
         await waitForTransaction(await USDC.connect(signer).approve(marketProtocol.address, toLockAmount));
 
@@ -61,7 +63,7 @@ wrapInEnv('Lock collateral', testEnv => {
         const [ , secondaryTestWallet ] = await getSignerAccounts();
         const connectedMarket = marketProtocol.connect(secondaryTestWallet);
         const connectedUSDC = USDC.connect(secondaryTestWallet);
-        const depositAmount = BigNumber.from(300);
+        const depositAmount = new BigNumber(300).toString();
         await waitForTransaction(await connectedUSDC.mint(depositAmount));
         await waitForTransaction(await connectedUSDC.approve(marketProtocol.address, depositAmount));
 
@@ -84,20 +86,81 @@ wrapInEnv('Unlock collateral', testEnv => {
 
     it('should unlock requested amount if the locked amount >= requested and emit event', async () => {
         const { USDC } = testEnv.contracts;
-        const toLockAmount = BigNumber.from(300);
+        const [ signer ] = await getSignerAccounts();
+        const toLockAmount = new BigNumber(300);
 
-        await waitForTransaction(await USDC.mint(toLockAmount));
-        await waitForTransaction(await USDC.approve(marketProtocol.address, toLockAmount));
-        await marketProtocol.deposit(USDC.address, toLockAmount, testEnv.deployer, true);
+        await depositAsset({
+            assetAddress: USDC.address,
+            signer,
+            amount: toLockAmount.toString(),
+            lock: true,
+        });
 
-        await expect(marketProtocol.unlockCollateral(USDC.address, toLockAmount.add(1)))
+        await expect(marketProtocol.unlockCollateral(USDC.address, toLockAmount.plus(1).toString()))
             .to.be.revertedWith('Yeti: Amount to unlock exceeds the locked amount for asset.');
 
-        const unlockTx = await waitForTransaction(await marketProtocol.unlockCollateral(USDC.address, toLockAmount));
+        const unlockTx = await waitForTransaction(await marketProtocol.unlockCollateral(USDC.address, toLockAmount.toString()));
 
         const unlockEvent = findEventLog(unlockTx.events || [], 'CollateralStatusChanged');
         expect(unlockEvent?.args?.asset).to.be.equal(USDC.address);
         expect(unlockEvent?.args?.isLocked).to.be.equal(false);
-        expect(unlockEvent?.args?.amount).to.be.equal(toLockAmount);
+        expect(unlockEvent?.args?.amount).to.be.equal(toLockAmount.toString());
+    });
+});
+
+
+wrapInEnv('Borrow Validation', testEnv => {
+
+    let marketProtocol: Yeti;
+
+    before(async () => {
+        const { addressesProvider } = testEnv.contracts;
+        marketProtocol = await (getInterfaceAtAddress(await addressesProvider.getMarketProtocol(), YetiContracts.Yeti)());
+    });
+
+    it('should not allow borrowing without or with collateral value less that requested', async () => {
+        const { USDC, feedRegistryMock, DAI } = testEnv.contracts;
+        const USDUnitPriceInETH = etherFactor.multipliedBy(2);
+        const DAIUnitPriceInETH = etherFactor.multipliedBy(4);
+        const [ depositor, borrower ] = await getSignerAccounts();
+        const USDCFactor = new BigNumber(10**testEnv.config.assetsConfig['USDC'].decimals);
+        const DAIFactor = new BigNumber(10**testEnv.config.assetsConfig['DAI'].decimals);
+        const availableLiquidityUSDC = new BigNumber(10).multipliedBy(USDCFactor); // 10 USDC
+
+        await feedRegistryMock.setPriceForAsset(USDC.address, USDUnitPriceInETH.toFixed());
+        await feedRegistryMock.setPriceForAsset(DAI.address, DAIUnitPriceInETH.toFixed());
+        await depositAsset({
+            assetAddress: USDC.address,
+            signer: depositor,
+            amount: availableLiquidityUSDC.toFixed(),
+            lock: true
+        });
+
+
+        await expect(marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidityUSDC.toFixed()))
+            .to.be.revertedWith('OpsValidation: Locked collateral is not enough');
+
+        const satisfactoryTotalCollateralPrice = availableLiquidityUSDC.dividedBy(USDCFactor).multipliedBy(USDUnitPriceInETH); // 0.002 ETH
+        const daiAssetsToDeposit = satisfactoryTotalCollateralPrice.dividedBy(DAIUnitPriceInETH).multipliedBy(DAIFactor); // 0.002 ETH worth as well
+
+        await depositAsset({
+            assetAddress: DAI.address,
+            signer: borrower,
+            amount: daiAssetsToDeposit.toString(),
+            lock: true,
+        });
+
+        await expect(marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidityUSDC.toFixed()))
+            .to.be.revertedWith('OpsValidation: Locked collateral is not enough');
+
+
+        await depositAsset({
+            assetAddress: DAI.address,
+            signer: borrower,
+            amount: new BigNumber(1).toFixed(),
+            lock: true,
+        });
+
+        await marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidityUSDC.toFixed());
     });
 });

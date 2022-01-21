@@ -5,6 +5,8 @@ library DataTypesYeti {
 
     struct PoolAssetConfig {
         uint256 commissionFactor; // in %
+        uint8 currencyDecimals; // 18 for ETH
+        address interestStrategy;
     }
 
     struct PoolAssetData {
@@ -13,12 +15,17 @@ library DataTypesYeti {
         //LP token
         address yetiToken;
 
+        address debtTrackerToken;
+
         uint256 liquidityIndex;
+
+        uint256 currentBorrowRate;
 
         PoolAssetConfig config;
     }
 
     struct AccountData {
         mapping(address => uint256) assetsLocked;
+        mapping(address => bool) borrowing;
     }
 }

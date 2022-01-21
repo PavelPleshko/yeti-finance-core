@@ -16,7 +16,18 @@ interface IYeti {
         uint256 amount;
     }
 
-    event AssetCreated(address indexed asset, address token);
+    event AssetCreated(
+        address indexed asset,
+        address token,
+        address debtToken
+    );
+
+    function createNewAsset(
+        address asset,
+        address lpTokenProxy,
+        address debtTokenProxy,
+        address interestRateLogic
+    ) external;
 
     event Deposit(
         address indexed asset,
@@ -24,18 +35,31 @@ interface IYeti {
         uint256 amount
     );
 
+    function deposit(
+        address asset,
+        uint256 amount,
+        address interestReceiver,
+        bool lockAsCollateral
+    ) external;
+
+    event Borrow(
+        address indexed asset,
+        address indexed borrower,
+        uint256 amount,
+        uint256 borrowRateAtATime
+    );
+
+    function borrow(
+        address asset,
+        uint256 amount
+    ) external;
+
     event CollateralStatusChanged(
         address indexed asset,
         bool isLocked,
         uint256 amount,
         address user
     );
-
-    function createNewAsset(
-        address asset,
-        address lpToken,
-        address assetManagerAddress
-    ) external;
 
     function lockCollateral (address asset, uint256 amount) external;
 

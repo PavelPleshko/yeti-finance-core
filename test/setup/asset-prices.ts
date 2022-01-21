@@ -1,14 +1,11 @@
-import { utils } from 'ethers';
-import {BigNumber} from 'bignumber.js';
 import { TokenIds } from '../../utils/config/tokens';
+import { etherFactor } from '../../utils/constants';
 import { getPersistedContract, YetiContracts } from '../../utils/contract-factories';
-
-export const oneEther = new BigNumber(utils.parseEther('1').toString());
 
 // TOKEN_ID -> ETH pricing
 export const assetsMockPrices: Record<TokenIds, string> = {
-    [TokenIds.USDC]: oneEther.multipliedBy('0.00367714136416').toFixed(),
-    [TokenIds.DAI]: oneEther.multipliedBy('0.00369068412860').toFixed(),
+    [TokenIds.USDC]: etherFactor.multipliedBy('0.00367714136416').toFixed(),
+    [TokenIds.DAI]: etherFactor.multipliedBy('0.00369068412860').toFixed(),
 };
 
 export const setInitialMockPriceFeedForTokens = async (tokenAddresses: Record<string, string>): Promise<void> => {
