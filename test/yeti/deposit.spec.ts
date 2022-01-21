@@ -10,7 +10,7 @@ wrapInEnv('Deposit', testEnv => {
     it('should not allow deposit operations with 0 amount', async () => {
         const { USDC } = testEnv.contracts;
         const [ signer ] = await getSignerAccounts();
-        const depositTx = depositAsset({ assetAddress: USDC.address, amount: 0, signer, lock: false });
+        const depositTx = depositAsset({ assetAddress: USDC.address, amount: '0', signer, lock: false });
         await expect(depositTx).to.be.revertedWith('Yeti: Amount cannot be 0');
     });
 
@@ -20,7 +20,7 @@ wrapInEnv('Deposit', testEnv => {
 
         const amountParsed = utils.parseUnits('100', testEnv.config.assetsConfig['USDC'].decimals);
         const lendingProtocol = await getMarketProtocol();
-        const depositTx = await depositAsset({ assetAddress: USDC.address, amount: amountParsed, signer, lock: false });
+        const depositTx = await depositAsset({ assetAddress: USDC.address, amount: amountParsed.toString(), signer, lock: false });
         const assetsStorage = (await getInterfaceAtAddress((await lendingProtocol.getAsset(USDC.address)).yetiToken, YetiContracts.YToken)());
 
         expect(await USDC.balanceOf(assetsStorage.address)).to.be.equal(amountParsed);

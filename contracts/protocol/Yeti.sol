@@ -78,7 +78,11 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
             amount,
             priceInETH,
             assetPool,
-            accountData
+            _assetsList,
+            _totalAssets,
+            accountData,
+            _assets,
+            priceFeedRouter
         );
 
         // mint debt tokens
@@ -89,6 +93,10 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
 
         // issue loan
         IYToken(assetPool.yetiToken).transferUnderlyingAsset(msg.sender, amount);
+
+        if (!accountData.borrowing[asset]) {
+            accountData.borrowing[asset] = true;
+        }
 
         // emit borrow event
         emit Borrow(
@@ -122,6 +130,16 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         accountData.assetsLocked[asset] = accountData.assetsLocked[asset] - amount;
 
         emit CollateralStatusChanged(asset, false, amount, msg.sender);
+    }
+
+    function getCollateralValueForAccount(address account) view external returns (uint256) {
+        return OpsValidationLib.getCollateralValue(
+            _totalAssets,
+            _assetsList,
+            _assets,
+            _accounts[account],
+            IPriceFeedRouter(addressesProvider.getPriceFeed())
+        );
     }
 
     function createNewAsset(

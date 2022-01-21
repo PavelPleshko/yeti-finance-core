@@ -26,5 +26,6 @@ library DataTypesYeti {
 
     struct AccountData {
         mapping(address => uint256) assetsLocked;
+        mapping(address => bool) borrowing;
     }
 }

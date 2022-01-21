@@ -14,7 +14,7 @@ wrapInEnv('InterestRates', testEnv => {
 
         const [ user1, user2 ] = await getSignerAccounts();
         const amountUSDC = utils.parseUnits('100', USDCConfig.decimals);
-        await depositAsset({ assetAddress: USDC.address, amount: amountUSDC, signer: user1, lock: false });
+        await depositAsset({ assetAddress: USDC.address, amount: amountUSDC.toString(), signer: user1, lock: false });
         const marketProtocol = await getMarketProtocol();
 
         const assetPool = await marketProtocol.getAsset(USDC.address);
@@ -24,7 +24,7 @@ wrapInEnv('InterestRates', testEnv => {
         expect(assetPool.currentBorrowRate.toString() === '0', 'When there are no borrows, borrow rate should be 0');
 
         const amountDAI = utils.parseUnits('100', testEnv.config.assetsConfig['DAI'].decimals);
-        await depositAsset({ assetAddress: DAI.address, amount: amountDAI, signer: user2, lock: true });
+        await depositAsset({ assetAddress: DAI.address, amount: amountDAI.toString(), signer: user2, lock: true });
 
         const borrowAmount = utils.parseUnits('20', USDCConfig.decimals);
         await (await getMarketProtocol(user2)).borrow(USDC.address, borrowAmount);
