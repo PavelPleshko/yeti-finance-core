@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 import {DataTypesYeti} from './DataTypesYeti.sol';
 import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "../price-oracle/IPriceFeedRouter.sol";
+import "../tokens/IDebtTrackerToken.sol";
 
 
 library OpsValidationLib {
@@ -22,7 +23,8 @@ library OpsValidationLib {
         require(IERC20(asset).balanceOf(borrowingAsset.yetiToken) >= amount, 'OpsValidation: Requested amount is more than available');
 
 
-        uint256 totalAmountLockedInETH = getCollateralValue(
+        (uint256 totalAmountLockedInETH, uint256 totalDebt) = getAccountSummary(
+            msg.sender,
             totalAssets,
             assetList,
             allAssets,
@@ -30,7 +32,7 @@ library OpsValidationLib {
             oracle
         );
 
-        require(totalAmountLockedInETH > amountInETH, 'OpsValidation: Locked collateral is not enough');
+        require(totalAmountLockedInETH > (amountInETH + totalDebt), 'OpsValidation: Locked collateral is not enough');
 
         // TODO We need to loop through all assets and check if the locked or borrowing
         // amount is more than 0. In this case we continue looping.
@@ -50,28 +52,48 @@ library OpsValidationLib {
         // than 10% of total liquidity in the pool.
     }
 
-    function getCollateralValue(
+    struct AccountSummaryLocals {
+        address currentAsset;
+        DataTypesYeti.PoolAssetData assetData;
+        uint256 assetPrice;
+        uint256 assetsLocked;
+        uint256 assetsBorrowed;
+    }
+
+    function getAccountSummary(
+        address account,
         uint256 totalAssets,
         mapping(uint256 => address) storage assetList,
         mapping(address => DataTypesYeti.PoolAssetData) storage allAssets,
         DataTypesYeti.AccountData storage accountData,
         IPriceFeedRouter oracle
-    ) view internal returns (uint256) {
+    ) view internal returns (uint256, uint256) {
         uint256 totalAmountLockedInETH;
+        uint256 totalDebtInETH;
+        AccountSummaryLocals memory locals;
 
         for (uint256 i = 0; i < totalAssets; i++) {
-            address currentAsset = assetList[i];
-            if (currentAsset != address(0)
-                && !accountData.borrowing[currentAsset]) {
-                uint256 assetsLocked = accountData.assetsLocked[currentAsset];
+            locals.currentAsset = assetList[i];
+            locals.assetData = allAssets[locals.currentAsset];
+            locals.assetPrice = uint256(oracle.getAssetPriceETH(locals.currentAsset));
 
-                if (assetsLocked > 0) {
-                    DataTypesYeti.PoolAssetData memory assetData = allAssets[currentAsset];
-                    uint256 assetPrice = uint256(oracle.getAssetPriceETH(currentAsset));
-                    totalAmountLockedInETH += ((assetPrice * assetsLocked) / (10 ** assetData.config.currencyDecimals));
+            if (!accountData.borrowing[locals.currentAsset]) {
+                locals.assetsLocked = accountData.assetsLocked[locals.currentAsset];
+                if (locals.assetsLocked > 0) {
+                    totalAmountLockedInETH += ((locals.assetsLocked * locals.assetPrice) / (10 ** locals.assetData.config.currencyDecimals));
                 }
+            } else {
+                locals.assetsBorrowed = IDebtTrackerToken(locals.assetData.debtTrackerToken).balanceOf(account);
+                if (locals.assetsBorrowed > 0) {
+                    totalDebtInETH += ((locals.assetsBorrowed * locals.assetPrice) / (10 ** locals.assetData.config.currencyDecimals));
+                }
+
             }
+
         }
-        return totalAmountLockedInETH;
+        return (
+            totalAmountLockedInETH,
+            totalDebtInETH
+        );
     }
 }

@@ -132,8 +132,9 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         emit CollateralStatusChanged(asset, false, amount, msg.sender);
     }
 
-    function getCollateralValueForAccount(address account) view external returns (uint256) {
-        return OpsValidationLib.getCollateralValue(
+    function getAccountSummary(address account) view external returns (uint256, uint256) {
+        return OpsValidationLib.getAccountSummary(
+            account,
             _totalAssets,
             _assetsList,
             _assets,
