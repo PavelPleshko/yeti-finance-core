@@ -42,6 +42,14 @@ interface IYeti {
         bool lockAsCollateral
     ) external;
 
+    event Withdraw(
+        address indexed asset,
+        address withdrawer,
+        uint256 amount
+    );
+
+    function withdraw(address asset, uint256 amount) external;
+
     event Borrow(
         address indexed asset,
         address indexed borrower,
@@ -61,9 +69,9 @@ interface IYeti {
         address user
     );
 
-    function lockCollateral (address asset, uint256 amount) external;
+    function lockCollateral(address asset, uint256 amount) external;
 
-    function unlockCollateral (address asset, uint256 amount) external;
+    function unlockCollateral(address asset, uint256 amount) external;
 
     function setAssetConfig(address asset, DataTypesYeti.PoolAssetConfig memory newConfig) external;
 

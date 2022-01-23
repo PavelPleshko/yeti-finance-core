@@ -67,14 +67,23 @@ contract YToken is IYToken, VersionedInit, ERC20('Yeti_TOKEN', 'Y'), UUPSUpgrade
         address account,
         uint256 amount
     ) external override onlyAssetPool {
-
         _mint(account, amount);
-        // TODO emit mint event
+        emit Mint(account, amount);
+    }
+
+    function burn(
+        address account,
+        address receiver,
+        uint256 amount
+    ) external override onlyAssetPool {
+        _burn(account, amount);
+
+        SafeERC20.safeTransfer(IERC20(_underlying), receiver, amount);
+        emit Burn(account, receiver, amount);
     }
 
     function transferUnderlyingAsset(address to, uint256 amount) external override onlyAssetPool {
-        IERC20 underlyingToken = IERC20(_underlying);
-        SafeERC20.safeTransfer(underlyingToken, to, amount);
+        SafeERC20.safeTransfer(IERC20(_underlying), to, amount);
     }
 
     function accruedFees() external view override returns (uint256) {
