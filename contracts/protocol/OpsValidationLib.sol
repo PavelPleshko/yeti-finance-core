@@ -4,6 +4,7 @@ import {DataTypesYeti} from './DataTypesYeti.sol';
 import "openzeppelin-solidity/contracts/token/ERC20/IERC20.sol";
 import "../price-oracle/IPriceFeedRouter.sol";
 import "../tokens/IDebtTrackerToken.sol";
+import "../tokens/IYToken.sol";
 
 
 library OpsValidationLib {
@@ -52,6 +53,19 @@ library OpsValidationLib {
         // than 10% of total liquidity in the pool.
     }
 
+    function validateWithdrawOperation(
+        address asset,
+        uint256 amount,
+        address account,
+        DataTypesYeti.PoolAssetData storage assetData
+    ) internal view {
+        require(amount > 0, 'OpsValidation: amount cannot be 0');
+        address yToken = assetData.yetiToken;
+
+        require(IERC20(asset).balanceOf(yToken) >= amount, 'OpsValidation: Not enough liquidity in the pool');
+        require(IYToken(yToken).balanceOf(account) >= amount, 'OpsValidation: Not enough balance');
+    }
+
     struct AccountSummaryLocals {
         address currentAsset;
         DataTypesYeti.PoolAssetData assetData;
@@ -92,8 +106,8 @@ library OpsValidationLib {
 
         }
         return (
-            totalAmountLockedInETH,
-            totalDebtInETH
+        totalAmountLockedInETH,
+        totalDebtInETH
         );
     }
 }

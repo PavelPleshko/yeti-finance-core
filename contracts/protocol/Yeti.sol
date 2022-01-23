@@ -65,11 +65,17 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         address asset,
         uint256 amount
     ) external override {
-        require(amount > 0, 'Yeti: amount cannot be 0');
         DataTypesYeti.PoolAssetData storage poolAsset = _assets[asset];
         DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
         uint256 lockedCollateralForAsset = accountData.assetsLocked[asset];
         address yToken = poolAsset.yetiToken;
+
+        OpsValidationLib.validateWithdrawOperation(
+            asset,
+            amount,
+            msg.sender,
+            poolAsset
+        );
 
         if (lockedCollateralForAsset > 0) {
             uint256 totalBalance = IYToken(yToken).balanceOf(msg.sender);
