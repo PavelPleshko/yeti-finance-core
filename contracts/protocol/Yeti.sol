@@ -41,6 +41,7 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
     function deposit(
         address asset,
         uint256 amount,
+    // TODO rethink how to transfer it safely
         address interestReceiver,
         bool lockAsCollateral
     ) public override {
@@ -50,14 +51,48 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         AssetStateManager.updateRates(poolAsset, asset, amount, 0);
         address yToken = poolAsset.yetiToken;
 
-        IERC20(asset).transferFrom(interestReceiver, yToken, amount);
-        IYToken(yToken).mint(interestReceiver, amount);
-
-        emit Deposit(asset, interestReceiver, amount);
+        IERC20(asset).transferFrom(msg.sender, yToken, amount);
+        IYToken(yToken).mint(msg.sender, amount);
 
         if (lockAsCollateral) {
             lockCollateral(asset, amount);
         }
+
+        emit Deposit(asset, msg.sender, amount);
+    }
+
+    function withdraw(
+        address asset,
+        uint256 amount
+    ) external override {
+        DataTypesYeti.PoolAssetData storage poolAsset = _assets[asset];
+        DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
+        uint256 lockedCollateralForAsset = accountData.assetsLocked[asset];
+        address yToken = poolAsset.yetiToken;
+
+        OpsValidationLib.validateWithdrawOperation(
+            asset,
+            amount,
+            msg.sender,
+            poolAsset
+        );
+
+        if (lockedCollateralForAsset > 0) {
+            uint256 totalBalance = IYToken(yToken).balanceOf(msg.sender);
+
+            uint256 removeFromCollateral = totalBalance - lockedCollateralForAsset > amount ?
+            0 :
+            amount - (totalBalance - lockedCollateralForAsset);
+
+            if (removeFromCollateral > 0) {
+                accountData.assetsLocked[asset] -= removeFromCollateral;
+            }
+        }
+
+        AssetStateManager.updateRates(poolAsset, asset, 0, amount);
+        IYToken(yToken).burn(msg.sender, msg.sender, amount);
+
+        emit Withdraw(asset, msg.sender, amount);
     }
 
     function borrow(
