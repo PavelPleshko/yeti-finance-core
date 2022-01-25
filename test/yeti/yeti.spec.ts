@@ -183,3 +183,63 @@ wrapInEnv('Borrow Validation', testEnv => {
             .to.be.revertedWith('OpsValidation: Locked collateral is not enough');
     });
 });
+
+
+wrapInEnv('Withdraw', testEnv => {
+    let marketProtocol: Yeti;
+
+    before(async () => {
+        const { addressesProvider } = testEnv.contracts;
+        marketProtocol = await (getInterfaceAtAddress(await addressesProvider.getMarketProtocol(), YetiContracts.Yeti)());
+    });
+
+    it('should deny withdraw if requested amount is 0', async () => {
+        const { USDC } = testEnv.contracts;
+        const [ depositor ] = await getSignerAccounts();
+
+        await expect(marketProtocol.withdraw(USDC.address,
+            0)).to.be.revertedWith('OpsValidation: amount cannot be 0');
+    });
+
+
+    it('should deny withdraw if there is no enough liquidity in the pool', async () => {
+        const { USDC } = testEnv.contracts;
+        const availableLiquidity = new BigNumber(1000);
+        const [ depositor ] = await getSignerAccounts();
+
+        await depositAsset({
+            assetAddress: USDC.address,
+            signer: depositor,
+            amount: availableLiquidity.toFixed(),
+            lock: false,
+        });
+
+        await expect(marketProtocol.connect(depositor).withdraw(USDC.address,
+            availableLiquidity.plus(1).toFixed())).to.be.revertedWith('OpsValidation: Not enough liquidity in the pool');
+    });
+
+    it('should deny withdraw if user does not have enough balance', async () => {
+        const { USDC } = testEnv.contracts;
+        const toWithdraw = new BigNumber(1000);
+        const [ , withdrawer ] = await getSignerAccounts();
+
+        await expect(marketProtocol.connect(withdrawer).withdraw(USDC.address,
+            toWithdraw.toFixed())).to.be.revertedWith('OpsValidation: Not enough balance');
+    });
+
+    it('should allow withdraw for depositor that invested money', async () => {
+        const { USDC } = testEnv.contracts;
+        const [ depositor ] = await getSignerAccounts();
+        const asset = await marketProtocol.getAsset(USDC.address);
+        const userBalanceForAssetBefore = await USDC.balanceOf(depositor.address);
+        const amountToWithdraw = await (await getInterfaceAtAddress(asset.yetiToken, YetiContracts.YToken)()).balanceOf(depositor.address);
+
+        await marketProtocol.connect(depositor).withdraw(USDC.address, amountToWithdraw);
+
+        const userBalanceForAssetAfter = await USDC.balanceOf(depositor.address);
+
+        expect(userBalanceForAssetBefore.lt(userBalanceForAssetAfter), 'Balance after is smaller than before').to.be.true;
+        expect(userBalanceForAssetAfter.eq(userBalanceForAssetBefore.sub(amountToWithdraw).abs()),
+            `${ amountToWithdraw } of tokens was not withdrawn`).to.be.true;
+    });
+});
