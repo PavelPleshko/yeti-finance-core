@@ -14,6 +14,8 @@ import {IPriceFeedRouter} from '../price-oracle/IPriceFeedRouter.sol';
 import {OpsValidationLib} from "./OpsValidationLib.sol";
 import "../tokens/IDebtTrackerToken.sol";
 import "../math/FloatMath.sol";
+import {SafeERC20} from "openzeppelin-solidity/contracts/token/ERC20/utils/SafeERC20.sol";
+
 /**
  * @title Main interaction point with Yeti protocol. Implementation contract initialized via {UpgradeableProxy}.
  * {AddressesProvider} contract address is provided in initializer function, so it has access to the all components
@@ -139,6 +141,30 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
             msg.sender,
             amount,
             assetPool.currentBorrowRate
+        );
+    }
+
+    function payback(address asset, uint256 amount) external override {
+        DataTypesYeti.PoolAssetData storage assetPool = _assets[asset];
+        uint256 accountDebt = IDebtTrackerToken(assetPool.debtTrackerToken).balanceOf(msg.sender);
+        uint256 amountToPay = amount < accountDebt ? amount : accountDebt;
+
+
+        IDebtTrackerToken(assetPool.debtTrackerToken).burn(msg.sender, amountToPay);
+
+        SafeERC20.safeTransferFrom(IERC20(asset), msg.sender, assetPool.yetiToken, amountToPay);
+
+        AssetStateManager.updateRates(assetPool, asset, amountToPay, 0);
+
+        if (amountToPay >= accountDebt) {
+            DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
+            accountData.borrowing[asset] = false;
+        }
+
+        emit Payback(
+            asset,
+            msg.sender,
+            amountToPay
         );
     }
 

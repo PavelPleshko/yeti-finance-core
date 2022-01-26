@@ -62,6 +62,17 @@ interface IYeti {
         uint256 amount
     ) external;
 
+    event Payback(
+        address indexed asset,
+        address indexed payer,
+        uint256 amount
+    );
+
+    function payback(
+        address asset,
+        uint256 amount
+    ) external;
+
     event CollateralStatusChanged(
         address indexed asset,
         bool isLocked,
