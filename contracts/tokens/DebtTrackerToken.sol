@@ -70,6 +70,16 @@ contract DebtTrackerToken is IDebtTrackerToken, VersionedInit, ERC20('DebtTracke
         emit Mint(account, scaledBorrow, borrowRate);
     }
 
+    function burn(
+        address account,
+        uint256 amount
+    ) external override onlyAssetPool {
+
+        _burn(account, amount);
+
+        emit Burn(account, amount);
+    }
+
     function _setName(string memory newName) internal {
         _name = newName;
     }
