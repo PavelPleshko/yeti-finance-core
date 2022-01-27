@@ -2,9 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "openzeppelin-solidity/contracts/token/ERC20/ERC20.sol";
-import "openzeppelin-solidity/contracts/proxy/utils/UUPSUpgradeable.sol";
 
-contract ERC20Mock is ERC20, UUPSUpgradeable {
+contract ERC20Mock is ERC20 {
     uint8 private _decimals;
 
     constructor(
@@ -31,9 +30,5 @@ contract ERC20Mock is ERC20, UUPSUpgradeable {
 
     function _setupDecimals(uint8 decimals) internal {
         _decimals = decimals;
-    }
-
-    function _authorizeUpgrade(address newImplementation) internal override {
-
     }
 }
