@@ -63,11 +63,10 @@ contract DebtTrackerToken is IDebtTrackerToken, VersionedInit, ERC20('DebtTracke
         uint256 amount,
         uint256 borrowRate
     ) external override onlyAssetPool {
-        uint256 scaledBorrow = FloatMath.rDiv(amount, borrowRate);
-        require(scaledBorrow > 0, 'DebtTrackerToken: Mint amount should be > 0');
-        _mint(account, scaledBorrow);
+        require(amount > 0, 'DebtTrackerToken: Mint amount should be > 0');
+        _mint(account, amount);
 
-        emit Mint(account, scaledBorrow, borrowRate);
+        emit Mint(account, amount, borrowRate);
     }
 
     function burn(

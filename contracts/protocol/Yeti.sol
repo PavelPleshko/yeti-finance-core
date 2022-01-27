@@ -53,7 +53,7 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         AssetStateManager.updateRates(poolAsset, asset, amount, 0);
         address yToken = poolAsset.yetiToken;
 
-        IERC20(asset).transferFrom(msg.sender, yToken, amount);
+        SafeERC20.safeTransferFrom(IERC20(asset), msg.sender, yToken, amount);
         IYToken(yToken).mint(msg.sender, amount);
 
         if (lockAsCollateral) {

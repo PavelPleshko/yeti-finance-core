@@ -3,7 +3,7 @@ import { expect } from 'chai';
 import { Yeti } from '../../typechain';
 import { etherFactor } from '../../utils/constants';
 
-import { findEventLog, getSignerAccounts, waitForTransaction } from '../../utils/contract-deploy';
+import { findEventLog, getRecognizedEvents, getSignerAccounts, waitForTransaction } from '../../utils/contract-deploy';
 import { getInterfaceAtAddress, YetiContracts } from '../../utils/contract-factories';
 import { wrapInEnv } from '../setup/tests-setup.spec';
 import { depositAsset } from '../test-helpers/deposit';
@@ -109,7 +109,7 @@ wrapInEnv('Unlock collateral', testEnv => {
 });
 
 
-wrapInEnv('Borrow Validation', testEnv => {
+wrapInEnv('Borrow', testEnv => {
 
     let marketProtocol: Yeti;
     let liquidityInUSDPool: BigNumber;
@@ -241,5 +241,69 @@ wrapInEnv('Withdraw', testEnv => {
         expect(userBalanceForAssetBefore.lt(userBalanceForAssetAfter), 'Balance after is smaller than before').to.be.true;
         expect(userBalanceForAssetAfter.eq(userBalanceForAssetBefore.sub(amountToWithdraw).abs()),
             `${ amountToWithdraw } of tokens was not withdrawn`).to.be.true;
+    });
+});
+
+wrapInEnv('Payback', testEnv => {
+    let marketProtocol: Yeti;
+
+    before(async () => {
+        const { addressesProvider } = testEnv.contracts;
+        marketProtocol = await (getInterfaceAtAddress(await addressesProvider.getMarketProtocol(), YetiContracts.Yeti)());
+    });
+
+    it('should not allow paying back 0', async () => {
+        const { USDC } = testEnv.contracts;
+        const [ payer ] = await getSignerAccounts();
+        await expect(marketProtocol.connect(payer).payback(USDC.address, 0))
+            .to.be.revertedWith('OpsValidation: amount cannot be 0');
+    });
+
+    it('should not allow paying back if debt is 0', async () => {
+        const { USDC } = testEnv.contracts;
+        const [ payer ] = await getSignerAccounts();
+        const paybackAmount = new BigNumber(100);
+        const asset = await marketProtocol.getAsset(USDC.address);
+        const debtTrackerToken = await getInterfaceAtAddress(asset.debtTrackerToken, YetiContracts.DebtToken)();
+
+        expect(await debtTrackerToken.balanceOf(payer.address)).to.be.equal(0);
+        await expect(marketProtocol.connect(payer).payback(USDC.address, paybackAmount.toFixed()))
+            .to.be.revertedWith('OpsValidation: amount of debt cannot be 0');
+    });
+
+    it('should allow paying back borrowed amount', async () => {
+        const { USDC, DAI, feedRegistryMock } = testEnv.contracts;
+        const [ depositor, borrower ] = await getSignerAccounts();
+        const USDUnitPriceInETH = etherFactor.multipliedBy(2);
+        const DAIUnitPriceInETH = etherFactor.multipliedBy(4);
+        const availableLiquidityUSDC = new BigNumber(10000);
+
+        await feedRegistryMock.setPriceForAsset(USDC.address, USDUnitPriceInETH.toFixed());
+        await feedRegistryMock.setPriceForAsset(DAI.address, DAIUnitPriceInETH.toFixed());
+
+        // make sure asset pool has enough liquidity
+        await depositAsset({
+            assetAddress: USDC.address,
+            amount: availableLiquidityUSDC.toFixed(),
+            signer: depositor,
+            lock: false,
+        });
+
+        // lock some collateral in order to borrow
+        await depositAsset({
+            assetAddress: DAI.address,
+            amount: new BigNumber(100 * (10 ** testEnv.config.assetsConfig['DAI'].decimals)).toFixed(),
+            signer: borrower,
+            lock: true,
+        });
+
+        const asset = await marketProtocol.getAsset(USDC.address);
+        await marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidityUSDC.toFixed());
+        await USDC.connect(borrower).increaseAllowance(marketProtocol.address, availableLiquidityUSDC.toFixed());
+        const poolBalanceAfterBorrow = await USDC.balanceOf(asset.yetiToken);
+
+        await marketProtocol.connect(borrower).payback(USDC.address, availableLiquidityUSDC.toFixed());
+
+        expect(await USDC.balanceOf(asset.yetiToken)).to.be.equal(poolBalanceAfterBorrow.add(availableLiquidityUSDC.toFixed()));
     });
 });
