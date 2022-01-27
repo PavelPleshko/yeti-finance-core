@@ -66,6 +66,15 @@ library OpsValidationLib {
         require(IYToken(yToken).balanceOf(account) >= amount, 'OpsValidation: Not enough balance');
     }
 
+    function validatePaybackOperation(
+        address asset,
+        uint256 amount,
+        uint256 debt
+    ) internal view {
+        require(amount > 0, 'OpsValidation: amount cannot be 0');
+        require(debt > 0, 'OpsValidation: amount of debt cannot be 0');
+    }
+
     struct AccountSummaryLocals {
         address currentAsset;
         DataTypesYeti.PoolAssetData assetData;
