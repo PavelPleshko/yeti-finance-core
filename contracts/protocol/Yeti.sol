@@ -147,8 +147,9 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
     function payback(address asset, uint256 amount) external override {
         DataTypesYeti.PoolAssetData storage assetPool = _assets[asset];
         uint256 accountDebt = IDebtTrackerToken(assetPool.debtTrackerToken).balanceOf(msg.sender);
-        uint256 amountToPay = amount < accountDebt ? amount : accountDebt;
+        OpsValidationLib.validatePaybackOperation(asset, amount, accountDebt);
 
+        uint256 amountToPay = amount < accountDebt ? amount : accountDebt;
 
         IDebtTrackerToken(assetPool.debtTrackerToken).burn(msg.sender, amountToPay);
 
