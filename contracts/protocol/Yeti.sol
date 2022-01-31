@@ -50,6 +50,7 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         require(amount > 0, 'Yeti: Amount cannot be 0');
         DataTypesYeti.PoolAssetData storage poolAsset = _assets[asset];
 
+        AssetStateManager.accrueInterest(poolAsset);
         AssetStateManager.updateRates(poolAsset, asset, amount, 0);
         address yToken = poolAsset.yetiToken;
 
