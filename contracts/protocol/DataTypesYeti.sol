@@ -17,9 +17,15 @@ library DataTypesYeti {
 
         address debtTrackerToken;
 
-        uint256 liquidityIndex;
+        uint256 currentLiquidityIndex;
+
+        uint256 currentBorrowIndex;
 
         uint256 currentBorrowRate;
+
+        uint256 currentLiquidityRate;
+
+        uint256 lastUpdated;
 
         PoolAssetConfig config;
     }

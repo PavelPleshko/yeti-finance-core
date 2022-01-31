@@ -29,8 +29,8 @@ contract SnowballInterestStrategy is IAssetInterestStrategy {
     function getAssetRates(
         uint256 availableLiquidity,
         uint256 totalDebt
-    ) public override view returns (uint256 utilRate, uint256 borrowRate) {
-        uint256 utilRate = getUtilizationRate(availableLiquidity, totalDebt); // ex. 0.3456445
+    ) public override view returns (uint256 utilRate, uint256 borrowRate, uint256 liquidityRate) {
+        uint256 utilRate = getUtilizationRate(availableLiquidity, totalDebt);
 
         uint256 borrowRate;
         if (utilRate >= _maxStableUtilization) {
@@ -40,9 +40,13 @@ contract SnowballInterestStrategy is IAssetInterestStrategy {
             borrowRate = FloatMath.rMul(_normalSlope, utilRate) + _baseInterest;
         }
 
+        // TODO when there is a reserve factor then we need percents multiplication
+        uint256 liquidityRate = FloatMath.rMul(borrowRate, utilRate);
+
         return (
-            utilRate,
-            borrowRate
+        utilRate,
+        borrowRate,
+        liquidityRate
         );
     }
 
