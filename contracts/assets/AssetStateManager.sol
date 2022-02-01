@@ -19,14 +19,14 @@ library AssetStateManager {
 
         if (prevLiquidityIndex > 0) {
             uint256 accruedInterest = getSimpleInterest(asset.currentLiquidityRate, asset.lastUpdated);
-            asset.currentLiquidityIndex = accruedInterest * asset.currentLiquidityIndex;
+            asset.currentLiquidityIndex = FloatMath.rMul(accruedInterest, asset.currentLiquidityIndex);
 
             if (pureTotalDebt > 0) {
                 uint256 accruedBorrowInterest = getCompoundedInterest(asset.currentBorrowRate, asset.lastUpdated);
                 asset.currentBorrowIndex = FloatMath.rMul(accruedBorrowInterest, asset.currentBorrowIndex);
             }
         }
-        asset.lastUpdated = uint40(block.timestamp);
+        asset.lastUpdated = uint256(block.timestamp);
     }
 
     function updateRates(

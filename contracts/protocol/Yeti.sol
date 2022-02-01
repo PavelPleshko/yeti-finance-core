@@ -43,15 +43,17 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
     function deposit(
         address asset,
         uint256 amount,
-    // TODO rethink how to transfer it safely
+        // TODO rethink how to transfer it safely
         address interestReceiver,
         bool lockAsCollateral
     ) public override {
+        // TODO move to validation
         require(amount > 0, 'Yeti: Amount cannot be 0');
         DataTypesYeti.PoolAssetData storage poolAsset = _assets[asset];
 
         AssetStateManager.accrueInterest(poolAsset);
         AssetStateManager.updateRates(poolAsset, asset, amount, 0);
+
         address yToken = poolAsset.yetiToken;
 
         SafeERC20.safeTransferFrom(IERC20(asset), msg.sender, yToken, amount);
@@ -92,6 +94,7 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
             }
         }
 
+        AssetStateManager.accrueInterest(poolAsset);
         AssetStateManager.updateRates(poolAsset, asset, 0, amount);
         IYToken(yToken).burn(msg.sender, msg.sender, amount);
 
@@ -102,35 +105,36 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         address asset,
         uint256 amount
     ) public override {
-        DataTypesYeti.PoolAssetData storage assetPool = _assets[asset];
+        DataTypesYeti.PoolAssetData storage poolAsset = _assets[asset];
         DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
 
         IPriceFeedRouter priceFeedRouter = IPriceFeedRouter(addressesProvider.getPriceFeed());
 
         // oracle should estimate how much in ETH borrower wants to borrow
-        uint256 priceInETH = (uint256(priceFeedRouter.getAssetPriceETH(asset)) * amount) / (10 ** assetPool.config.currencyDecimals);
+        uint256 priceInETH = (uint256(priceFeedRouter.getAssetPriceETH(asset)) * amount) / (10 ** poolAsset.config.currencyDecimals);
 
         // validate if the operation can be performed given new state
         OpsValidationLib.validateBorrowOperation(
             asset,
             amount,
             priceInETH,
-            assetPool,
+            poolAsset,
             _assetsList,
             _totalAssets,
             accountData,
             _assets,
             priceFeedRouter
         );
+        AssetStateManager.accrueInterest(poolAsset);
 
         // mint debt tokens
-        IDebtTrackerToken(assetPool.debtTrackerToken).mint(msg.sender, amount, assetPool.currentBorrowRate);
+        IDebtTrackerToken(poolAsset.debtTrackerToken).mint(msg.sender, amount, poolAsset.currentBorrowRate);
 
         // update liquidity, borrow rates
-        AssetStateManager.updateRates(assetPool, asset, amount, 0);
+        AssetStateManager.updateRates(poolAsset, asset, 0, amount);
 
         // issue loan
-        IYToken(assetPool.yetiToken).transferUnderlyingAsset(msg.sender, amount);
+        IYToken(poolAsset.yetiToken).transferUnderlyingAsset(msg.sender, amount);
 
         if (!accountData.borrowing[asset]) {
             accountData.borrowing[asset] = true;
@@ -141,22 +145,24 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
             asset,
             msg.sender,
             amount,
-            assetPool.currentBorrowRate
+            poolAsset.currentBorrowRate
         );
     }
 
     function payback(address asset, uint256 amount) external override {
-        DataTypesYeti.PoolAssetData storage assetPool = _assets[asset];
-        uint256 accountDebt = IDebtTrackerToken(assetPool.debtTrackerToken).balanceOf(msg.sender);
+        DataTypesYeti.PoolAssetData storage poolAsset = _assets[asset];
+        uint256 accountDebt = IDebtTrackerToken(poolAsset.debtTrackerToken).balanceOf(msg.sender);
         OpsValidationLib.validatePaybackOperation(asset, amount, accountDebt);
 
         uint256 amountToPay = amount < accountDebt ? amount : accountDebt;
 
-        IDebtTrackerToken(assetPool.debtTrackerToken).burn(msg.sender, amountToPay);
+        AssetStateManager.accrueInterest(poolAsset);
 
-        SafeERC20.safeTransferFrom(IERC20(asset), msg.sender, assetPool.yetiToken, amountToPay);
+        IDebtTrackerToken(poolAsset.debtTrackerToken).burn(msg.sender, amountToPay);
 
-        AssetStateManager.updateRates(assetPool, asset, amountToPay, 0);
+        SafeERC20.safeTransferFrom(IERC20(asset), msg.sender, poolAsset.yetiToken, amountToPay);
+
+        AssetStateManager.updateRates(poolAsset, asset, amountToPay, 0);
 
         if (amountToPay >= accountDebt) {
             DataTypesYeti.AccountData storage accountData = _accounts[msg.sender];
@@ -217,7 +223,8 @@ contract Yeti is IYeti, VersionedInit, UUPSUpgradeable, YetiStorageLayout {
         newAsset.id = _totalAssets++;
         newAsset.yetiToken = lpTokenProxy;
         newAsset.debtTrackerToken = debtTokenProxy;
-        newAsset.currentBorrowRate = FloatMath.ray();
+        newAsset.currentBorrowIndex = FloatMath.ray();
+        newAsset.currentLiquidityIndex = FloatMath.ray();
         newAsset.config.interestStrategy = interestRateLogic;
 
         _assetsList[_totalAssets - 1] = asset;

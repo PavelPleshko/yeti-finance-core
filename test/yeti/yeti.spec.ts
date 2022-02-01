@@ -157,7 +157,6 @@ wrapInEnv('Borrow', testEnv => {
         await expect(marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidityUSDC.toFixed()))
             .to.be.revertedWith('OpsValidation: Locked collateral is not enough');
 
-
         await depositAsset({
             assetAddress: DAI.address,
             signer: borrower,
