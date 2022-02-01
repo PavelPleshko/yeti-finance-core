@@ -37,7 +37,7 @@ contract SnowballInterestStrategy is IAssetInterestStrategy {
             uint256 utilizationOverflowRate = FloatMath.rDiv(utilRate - _maxStableUtilization, _excessUtilization);
             borrowRate = FloatMath.rMul(_jumpSlope, utilizationOverflowRate) + _baseInterest;
         } else {
-            borrowRate = FloatMath.rMul(_normalSlope, utilRate) + _baseInterest;
+            borrowRate = FloatMath.rDiv(FloatMath.rMul(_normalSlope, utilRate), _maxStableUtilization) + _baseInterest;
         }
 
         // TODO when there is a reserve factor then we need percents multiplication

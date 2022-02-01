@@ -1,4 +1,3 @@
-import BigNumber from 'bignumber.js';
 import { YetiContracts } from '../contract-factories';
 
 export interface InterestStrategy {

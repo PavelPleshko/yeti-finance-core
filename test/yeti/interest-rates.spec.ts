@@ -1,8 +1,9 @@
 import BigNumber from 'bignumber.js';
 import { expect } from 'chai';
 import { utils } from 'ethers';
-import { getSignerAccounts } from '../../utils/contract-deploy';
-import { getMarketProtocol } from '../../utils/contract-factories';
+import { rayFactor } from '../../utils/constants';
+import { findEventLog, getSignerAccounts, waitForTransaction } from '../../utils/contract-deploy';
+import { getInterfaceAtAddress, getMarketProtocol, YetiContracts } from '../../utils/contract-factories';
 import { wrapInEnv } from '../setup/tests-setup.spec';
 import { depositAsset } from '../test-helpers/deposit';
 
@@ -33,5 +34,76 @@ wrapInEnv('InterestRates', testEnv => {
         const newAssetState = await marketProtocol.getAsset(USDC.address);
         expect(new BigNumber(assetPool.currentBorrowRate.toString()).isLessThan(new BigNumber(newAssetState.currentBorrowRate.toString())),
             'Borrow rate should increase with less resources available');
+    });
+});
+
+
+wrapInEnv('Borrow rate', testEnv => {
+
+    it('should have base borrow rate if nobody is borrowing', async () => {
+        const { USDC } = testEnv.contracts;
+        const USDCConfig = testEnv.config.assetsConfig['USDC'];
+        const baseBorrowRate = USDCConfig.interestStrategy.baseInterest;
+        const marketProtocol = await getMarketProtocol();
+        const [ investor ] = await getSignerAccounts();
+        await depositAsset({
+            assetAddress: USDC.address,
+            signer: investor,
+            amount: new BigNumber(1000 * (10 ** USDCConfig.decimals)).toFixed(),
+            lock: false,
+        });
+
+        const assetInfo = await marketProtocol.getAsset(USDC.address);
+
+        expect(assetInfo.currentBorrowRate).to.be.equal(baseBorrowRate);
+    });
+
+    it('should adjust borrow rate for asset based on snowball strategy', async () => {
+        const { USDC, DAI } = testEnv.contracts;
+        const USDCConfig = testEnv.config.assetsConfig['USDC'];
+        const baseBorrowRate = new BigNumber(USDCConfig.interestStrategy.baseInterest);
+        const [ , borrower ] = await getSignerAccounts();
+        const marketProtocol = await getMarketProtocol();
+
+        const amountDAI = utils.parseUnits('1000', testEnv.config.assetsConfig['DAI'].decimals);
+        await depositAsset({ assetAddress: DAI.address, amount: amountDAI.toString(), signer: borrower, lock: true });
+
+        const borrowAmount = new BigNumber(500 * (10 ** USDCConfig.decimals));
+        await marketProtocol.connect(borrower).borrow(USDC.address, borrowAmount.toFixed());
+        const assetInfo = await marketProtocol.getAsset(USDC.address);
+
+        const debtToken = await getInterfaceAtAddress(assetInfo.debtTrackerToken, YetiContracts.DebtToken)();
+        const totalDebt = await debtToken.totalSupply();
+        const availableLiquidity = await USDC.balanceOf(assetInfo.yetiToken);
+
+        const totalResources = availableLiquidity.add(totalDebt);
+        const utilRate = new BigNumber(totalDebt.toString()).dividedBy(new BigNumber(totalResources.toString()));
+        expect(utilRate.toNumber() < +USDCConfig.interestStrategy.maxStableUtilization).to.be.true;
+
+
+        const expectedBorrowRate = utilRate.multipliedBy(USDCConfig.interestStrategy.normalSlope)
+            .dividedBy(USDCConfig.interestStrategy.maxStableUtilization).plus(baseBorrowRate.dividedBy(rayFactor));
+
+        const actualBorrowRate = (await marketProtocol.getAsset(USDC.address)).currentBorrowRate.toString();
+        expect(expectedBorrowRate.toFixed()).to.be.equal(new BigNumber(actualBorrowRate).dividedBy(rayFactor).toFixed());
+    });
+
+    it('should adjust borrow rate correspondingly for asset when utilisation is above threshold', async () => {
+        const { USDC } = testEnv.contracts;
+        const USDCConfig = testEnv.config.assetsConfig['USDC'];
+        const baseBorrowRate = new BigNumber(USDCConfig.interestStrategy.baseInterest);
+        const [ , borrower ] = await getSignerAccounts();
+        const marketProtocol = await getMarketProtocol();
+
+        const assetInfo = await marketProtocol.getAsset(USDC.address);
+        const availableLiquidity = await USDC.balanceOf(assetInfo.yetiToken);
+
+        await marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidity);
+
+        const borrowRateWithDepletedResource = (await marketProtocol.getAsset(USDC.address)).currentBorrowRate.toString();
+
+        const expectedBorrowRateWithDepletedResource = new BigNumber(USDCConfig.interestStrategy.jumpSlope).plus(baseBorrowRate);
+
+        expect(borrowRateWithDepletedResource.toString()).to.be.equal(expectedBorrowRateWithDepletedResource.toFixed());
     });
 });
