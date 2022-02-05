@@ -2,10 +2,12 @@ import BigNumber from 'bignumber.js';
 import { expect } from 'chai';
 import { utils } from 'ethers';
 import { rayFactor } from '../../utils/constants';
-import { findEventLog, getSignerAccounts, waitForTransaction } from '../../utils/contract-deploy';
+import { getSignerAccounts } from '../../utils/contract-deploy';
 import { getInterfaceAtAddress, getMarketProtocol, YetiContracts } from '../../utils/contract-factories';
+import { getCurrentBlock, travelToFuture } from '../misc/evm-commands';
 import { wrapInEnv } from '../setup/tests-setup.spec';
 import { depositAsset } from '../test-helpers/deposit';
+import { calculateCompoundedInterest, calculateNewBorrowRate } from '../test-helpers/interest-rates-calculations';
 
 wrapInEnv('InterestRates', testEnv => {
 
@@ -105,5 +107,54 @@ wrapInEnv('Borrow rate', testEnv => {
         const expectedBorrowRateWithDepletedResource = new BigNumber(USDCConfig.interestStrategy.jumpSlope).plus(baseBorrowRate);
 
         expect(borrowRateWithDepletedResource.toString()).to.be.equal(expectedBorrowRateWithDepletedResource.toFixed());
+    });
+});
+
+
+wrapInEnv('Accrued interests', testEnv => {
+
+    it('should accrue debt over time', async () => {
+        const { USDC, DAI } = testEnv.contracts;
+        const USDCConfig = testEnv.config.assetsConfig['USDC'];
+        const marketProtocol = await getMarketProtocol();
+        const [ investor, borrower ] = await getSignerAccounts();
+
+        await depositAsset({
+            assetAddress: USDC.address,
+            signer: investor,
+            amount: new BigNumber(1000 * (10 ** USDCConfig.decimals)).toFixed(),
+            lock: false,
+        });
+
+        const amountDAI = utils.parseUnits('1000', testEnv.config.assetsConfig['DAI'].decimals);
+        await depositAsset({ assetAddress: DAI.address, amount: amountDAI.toString(), signer: borrower, lock: true });
+
+        const borrowAmount = new BigNumber(500 * (10 ** USDCConfig.decimals));
+        await marketProtocol.connect(borrower).borrow(USDC.address, borrowAmount.toFixed());
+        const assetInfo = await marketProtocol.getAsset(USDC.address);
+
+        expect(assetInfo.currentBorrowIndex.toString()).to.be.equal(rayFactor.toFixed());
+
+        const timePassed = 60 * 60 * 24 * 100; // 10 days
+        await travelToFuture(timePassed);
+
+        // trigger updates on reserve indexes
+        await depositAsset({
+            assetAddress: USDC.address,
+            signer: investor,
+            amount: new BigNumber(10 * (10 ** USDCConfig.decimals)).toFixed(),
+            lock: false,
+        });
+
+        const newAssetInfo = await marketProtocol.getAsset(USDC.address);
+
+        const currentBlock = await getCurrentBlock();
+        const accruedInterest = calculateCompoundedInterest(
+            new BigNumber(assetInfo.currentBorrowRate.toString()),
+            assetInfo.lastUpdated.toNumber(),
+            currentBlock.timestamp,
+        );
+        const expectedBorrowRate = calculateNewBorrowRate(accruedInterest, new BigNumber(assetInfo.currentBorrowIndex.toString()));
+        expect(newAssetInfo.currentBorrowIndex.toString()).to.equal(expectedBorrowRate.toFixed());
     });
 });

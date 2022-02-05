@@ -55,7 +55,6 @@ library AssetStateManager {
         uint256 timeDelta = block.timestamp - timeOfLastUpdate;
 
         uint256 accumulationSpeedPerSecond = rate / ONE_YEAR;
-
         return FloatMath.rPow(accumulationSpeedPerSecond + FloatMath.ray(), timeDelta);
     }
 }
