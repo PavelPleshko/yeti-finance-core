@@ -1,12 +1,21 @@
 import BigNumber from 'bignumber.js';
+
 import { rayFactor } from '../../utils/constants';
 
-const roundDown = (num: BigNumber): BigNumber => {
+/**
+ * In solidity floats are rounded down, this is a helper
+ * to make certain operations behave as in solidity.
+ */
+export const roundDown = (num: BigNumber): BigNumber => {
     return num.decimalPlaces(0, BigNumber.ROUND_DOWN);
 };
 
 const halfRay = roundDown(rayFactor.div(2));
 
+/**
+ * A set of functions that imitate calculation operations used in
+ * smart contracts where the arguments are represented in RAY.
+ */
 export class FloatMath {
 
     static rMul (a: BigNumber, b: BigNumber): BigNumber {
@@ -16,7 +25,7 @@ export class FloatMath {
 
     static rDiv (a: BigNumber, b: BigNumber): BigNumber {
         const halfB = roundDown(b.div(2));
-        const result = halfB.plus(a.multipliedBy(rayFactor)).decimalPlaces(0,BigNumber.ROUND_DOWN).div(b);
+        const result = halfB.plus(a.multipliedBy(rayFactor)).div(b);
         return roundDown(result);
     }
 

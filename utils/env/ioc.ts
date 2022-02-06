@@ -11,6 +11,7 @@ export const createEnv = async (): Promise<void> => {
 
     (DEV_RE as any)[IOC_SYMBOL] = {
         db,
+        config,
     };
 };
 
