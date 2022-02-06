@@ -20,12 +20,13 @@ contract YToken is IYToken, VersionedInit, ERC20('Yeti_TOKEN', 'Y'), UUPSUpgrade
     );
 
     address private _assetPool;
-    address private _underlying;
     string private _name;
     string private _symbol;
     uint8 private _decimals;
     uint256 private _totalBorrows;
     uint256 private _accruedFees;
+
+    address public underlying;
 
 
     // needs to be incremented manually if new implementation needs to be deployed
@@ -41,7 +42,7 @@ contract YToken is IYToken, VersionedInit, ERC20('Yeti_TOKEN', 'Y'), UUPSUpgrade
     }
 
     function initialize(
-        address underlying,
+        address _underlying,
         address assetPool,
         uint8 yetiTokenDecimals,
         string calldata yetiTokenName,
@@ -51,7 +52,7 @@ contract YToken is IYToken, VersionedInit, ERC20('Yeti_TOKEN', 'Y'), UUPSUpgrade
         _setName(yetiTokenName);
         _setSymbol(yetiTokenSymbol);
         _setDecimals(yetiTokenDecimals);
-        _underlying = underlying;
+        underlying = _underlying;
         _assetPool = assetPool;
 
         emit Initialized(
@@ -78,12 +79,12 @@ contract YToken is IYToken, VersionedInit, ERC20('Yeti_TOKEN', 'Y'), UUPSUpgrade
     ) external override onlyAssetPool {
         _burn(account, amount);
 
-        SafeERC20.safeTransfer(IERC20(_underlying), receiver, amount);
+        SafeERC20.safeTransfer(IERC20(underlying), receiver, amount);
         emit Burn(account, receiver, amount);
     }
 
     function transferUnderlyingAsset(address to, uint256 amount) external override onlyAssetPool {
-        SafeERC20.safeTransfer(IERC20(_underlying), to, amount);
+        SafeERC20.safeTransfer(IERC20(underlying), to, amount);
     }
 
     function accruedFees() external view override returns (uint256) {

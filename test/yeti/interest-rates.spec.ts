@@ -8,29 +8,30 @@ import { getCurrentBlock, travelToFuture } from '../misc/evm-commands';
 import { wrapInEnv } from '../setup/tests-setup.spec';
 import { depositAsset } from '../test-helpers/deposit';
 import { calculateCompoundedInterest, calculateNewBorrowRate } from '../test-helpers/interest-rates-calculations';
+import { fulfillBorrowRequirements } from '../test-helpers/users';
 
 wrapInEnv('InterestRates', testEnv => {
 
     it('should adjust the borrow rate in asset pool on borrow action', async () => {
-        const { USDC, DAI } = testEnv.contracts;
+        const { USDC } = testEnv.contracts;
         const USDCConfig = testEnv.config.assetsConfig['USDC'];
 
-        const [ user1, user2 ] = await getSignerAccounts();
-        const amountUSDC = utils.parseUnits('100', USDCConfig.decimals);
-        await depositAsset({ assetAddress: USDC.address, amount: amountUSDC.toString(), signer: user1, lock: false });
+        const [ borrower ] = await getSignerAccounts();
+        await fulfillBorrowRequirements(
+            20,
+            'USDC',
+            borrower,
+        );
         const marketProtocol = await getMarketProtocol();
-
         const assetPool = await marketProtocol.getAsset(USDC.address);
+
         const prevBorrowRate = new BigNumber(assetPool.currentBorrowRate.toString());
         expect(prevBorrowRate.isEqualTo(USDCConfig.interestStrategy.baseInterest));
 
         expect(assetPool.currentBorrowRate.toString() === '0', 'When there are no borrows, borrow rate should be 0');
 
-        const amountDAI = utils.parseUnits('100', testEnv.config.assetsConfig['DAI'].decimals);
-        await depositAsset({ assetAddress: DAI.address, amount: amountDAI.toString(), signer: user2, lock: true });
-
         const borrowAmount = utils.parseUnits('20', USDCConfig.decimals);
-        await (await getMarketProtocol(user2)).borrow(USDC.address, borrowAmount);
+        await (await getMarketProtocol(borrower)).borrow(USDC.address, borrowAmount);
 
         // here we need to see if the borrow rate has been adjusted
         const newAssetState = await marketProtocol.getAsset(USDC.address);
@@ -114,20 +115,16 @@ wrapInEnv('Borrow rate', testEnv => {
 wrapInEnv('Accrued interests', testEnv => {
 
     it('should accrue debt over time', async () => {
-        const { USDC, DAI } = testEnv.contracts;
+        const { USDC } = testEnv.contracts;
         const USDCConfig = testEnv.config.assetsConfig['USDC'];
         const marketProtocol = await getMarketProtocol();
         const [ investor, borrower ] = await getSignerAccounts();
 
-        await depositAsset({
-            assetAddress: USDC.address,
-            signer: investor,
-            amount: new BigNumber(1000 * (10 ** USDCConfig.decimals)).toFixed(),
-            lock: false,
-        });
-
-        const amountDAI = utils.parseUnits('1000', testEnv.config.assetsConfig['DAI'].decimals);
-        await depositAsset({ assetAddress: DAI.address, amount: amountDAI.toString(), signer: borrower, lock: true });
+        await fulfillBorrowRequirements(
+            1000,
+            'USDC',
+            borrower,
+        );
 
         const borrowAmount = new BigNumber(500 * (10 ** USDCConfig.decimals));
         await marketProtocol.connect(borrower).borrow(USDC.address, borrowAmount.toFixed());

@@ -1,14 +1,12 @@
 import BigNumber from 'bignumber.js';
 
 import { rayFactor, SECONDS_ONE_YEAR } from '../../utils/constants';
-import { FloatMath } from '../misc/ray-math-calculations';
+import { FloatMath, roundDown } from '../misc/ray-math-calculations';
 
 
-export const calculateCompoundedInterest = (rate: BigNumber, lastUpdate: number, currentTime: number): BigNumber => {
-    const timeDelta = new BigNumber(currentTime - lastUpdate);
-    const accumulationSpeedPerSecond = rate
-        .div(SECONDS_ONE_YEAR)
-        .decimalPlaces(0, BigNumber.ROUND_DOWN);
+export const calculateCompoundedInterest = (rate: BigNumber, lastUpdateTime: number, currentTime: number): BigNumber => {
+    const timeDelta = new BigNumber(currentTime - lastUpdateTime);
+    const accumulationSpeedPerSecond = roundDown(rate.div(SECONDS_ONE_YEAR));
 
     return FloatMath.rPow(accumulationSpeedPerSecond.plus(rayFactor), timeDelta);
 };
