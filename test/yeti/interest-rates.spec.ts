@@ -62,17 +62,19 @@ wrapInEnv('Borrow rate', testEnv => {
     });
 
     it('should adjust borrow rate for asset based on snowball strategy', async () => {
-        const { USDC, DAI } = testEnv.contracts;
+        const { USDC } = testEnv.contracts;
         const USDCConfig = testEnv.config.assetsConfig['USDC'];
         const baseBorrowRate = new BigNumber(USDCConfig.interestStrategy.baseInterest);
         const [ , borrower ] = await getSignerAccounts();
         const marketProtocol = await getMarketProtocol();
 
-        const amountDAI = utils.parseUnits('1000', testEnv.config.assetsConfig['DAI'].decimals);
-        await depositAsset({ assetAddress: DAI.address, amount: amountDAI.toString(), signer: borrower, lock: true });
+        const allowedToBorrow = await fulfillBorrowRequirements(
+          50000,
+          'USDC',
+          borrower,
+        );
 
-        const borrowAmount = new BigNumber(500 * (10 ** USDCConfig.decimals));
-        await marketProtocol.connect(borrower).borrow(USDC.address, borrowAmount.toFixed());
+        await marketProtocol.connect(borrower).borrow(USDC.address, allowedToBorrow.dividedBy(2).toFixed());
         const assetInfo = await marketProtocol.getAsset(USDC.address);
 
         const debtToken = await getInterfaceAtAddress(assetInfo.debtTrackerToken, YetiContracts.DebtToken)();
@@ -101,6 +103,12 @@ wrapInEnv('Borrow rate', testEnv => {
         const assetInfo = await marketProtocol.getAsset(USDC.address);
         const availableLiquidity = await USDC.balanceOf(assetInfo.yetiToken);
 
+        await fulfillBorrowRequirements(
+            availableLiquidity.div(10 ** assetInfo.config.currencyDecimals).toNumber(),
+            'USDC',
+            borrower,
+        );
+
         await marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidity);
 
         const borrowRateWithDepletedResource = (await marketProtocol.getAsset(USDC.address)).currentBorrowRate.toString();
@@ -120,13 +128,12 @@ wrapInEnv('Accrued interests', testEnv => {
         const marketProtocol = await getMarketProtocol();
         const [ investor, borrower ] = await getSignerAccounts();
 
-        await fulfillBorrowRequirements(
+        const borrowAmount = await fulfillBorrowRequirements(
             1000,
             'USDC',
             borrower,
         );
 
-        const borrowAmount = new BigNumber(500 * (10 ** USDCConfig.decimals));
         await marketProtocol.connect(borrower).borrow(USDC.address, borrowAmount.toFixed());
         const assetInfo = await marketProtocol.getAsset(USDC.address);
 
