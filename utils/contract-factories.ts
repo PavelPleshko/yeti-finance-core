@@ -71,7 +71,7 @@ export const getInterfaceAtAddress = <T extends YetiContracts> (
 
     return (async (connectAs?: SignerWithAddress) => {
         const signer = connectAs ? connectAs : (await getSignerAccounts())[0];
-        return factory.connect(address, signer)
+        return factory.connect(address, signer);
     }) as ConnectableFactory<T>;
 };
 
@@ -88,7 +88,12 @@ export const getPersistedContract = async <T extends YetiContracts> (contractId:
 };
 
 export const getMarketProtocol = async (as?: SignerWithAddress): Promise<Yeti> => {
-    const addressesProvider = await(await getPersistedContract(YetiContracts.AddressesProvider))();
+    const addressesProvider = await (await getPersistedContract(YetiContracts.AddressesProvider))();
     const marketProtocol = await addressesProvider.getMarketProtocol();
     return getInterfaceAtAddress(marketProtocol, YetiContracts.Yeti)(as);
-}
+};
+
+export const getPriceFeed = async (): Promise<PriceFeedRouter> => {
+    const addressesProvider = await (await getPersistedContract(YetiContracts.AddressesProvider))();
+    return getInterfaceAtAddress(await addressesProvider.getPriceFeed(), YetiContracts.PriceFeedRouter)();
+};

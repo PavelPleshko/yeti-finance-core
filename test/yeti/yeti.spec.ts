@@ -3,10 +3,11 @@ import { expect } from 'chai';
 import { Yeti } from '../../typechain';
 import { etherFactor } from '../../utils/constants';
 
-import { findEventLog, getRecognizedEvents, getSignerAccounts, waitForTransaction } from '../../utils/contract-deploy';
+import { findEventLog, getSignerAccounts, waitForTransaction } from '../../utils/contract-deploy';
 import { getInterfaceAtAddress, YetiContracts } from '../../utils/contract-factories';
 import { wrapInEnv } from '../setup/tests-setup.spec';
 import { depositAsset } from '../test-helpers/deposit';
+import { calculateEquivalentInValue, fulfillBorrowRequirements, getAssetsPriceRatio } from '../test-helpers/users';
 
 wrapInEnv('Lock collateral', testEnv => {
     let marketProtocol: Yeti;
@@ -144,13 +145,16 @@ wrapInEnv('Borrow', testEnv => {
         await expect(marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidityUSDC.toFixed()))
             .to.be.revertedWith('OpsValidation: Locked collateral is not enough');
 
-        const satisfactoryTotalCollateralPrice = availableLiquidityUSDC.dividedBy(USDCFactor).multipliedBy(USDUnitPriceInETH); // 0.002 ETH
-        const daiAssetsToDeposit = satisfactoryTotalCollateralPrice.dividedBy(DAIUnitPriceInETH).multipliedBy(DAIFactor); // 0.002 ETH worth as well
+        const daiAssetsToDeposit = await calculateEquivalentInValue(
+            USDC.address,
+            DAI.address,
+            availableLiquidityUSDC,
+        );
 
         await depositAsset({
             assetAddress: DAI.address,
             signer: borrower,
-            amount: daiAssetsToDeposit.toString(),
+            amount: daiAssetsToDeposit.toFixed(),
             lock: true,
         });
 
@@ -196,7 +200,7 @@ wrapInEnv('Withdraw', testEnv => {
         const { USDC } = testEnv.contracts;
         const [ depositor ] = await getSignerAccounts();
 
-        await expect(marketProtocol.withdraw(USDC.address,
+        await expect(marketProtocol.connect(depositor).withdraw(USDC.address,
             0)).to.be.revertedWith('OpsValidation: amount cannot be 0');
     });
 
@@ -271,38 +275,22 @@ wrapInEnv('Payback', testEnv => {
     });
 
     it('should allow paying back borrowed amount', async () => {
-        const { USDC, DAI, feedRegistryMock } = testEnv.contracts;
-        const [ depositor, borrower ] = await getSignerAccounts();
-        const USDUnitPriceInETH = etherFactor.multipliedBy(2);
-        const DAIUnitPriceInETH = etherFactor.multipliedBy(4);
-        const availableLiquidityUSDC = new BigNumber(10000);
+        const { USDC } = testEnv.contracts;
+        const [ , borrower ] = await getSignerAccounts();
 
-        await feedRegistryMock.setPriceForAsset(USDC.address, USDUnitPriceInETH.toFixed());
-        await feedRegistryMock.setPriceForAsset(DAI.address, DAIUnitPriceInETH.toFixed());
-
-        // make sure asset pool has enough liquidity
-        await depositAsset({
-            assetAddress: USDC.address,
-            amount: availableLiquidityUSDC.toFixed(),
-            signer: depositor,
-            lock: false,
-        });
-
-        // lock some collateral in order to borrow
-        await depositAsset({
-            assetAddress: DAI.address,
-            amount: new BigNumber(100 * (10 ** testEnv.config.assetsConfig['DAI'].decimals)).toFixed(),
-            signer: borrower,
-            lock: true,
-        });
+        const toBorrow = await fulfillBorrowRequirements(
+            10000,
+            'USDC',
+            borrower,
+        );
 
         const asset = await marketProtocol.getAsset(USDC.address);
-        await marketProtocol.connect(borrower).borrow(USDC.address, availableLiquidityUSDC.toFixed());
-        await USDC.connect(borrower).increaseAllowance(marketProtocol.address, availableLiquidityUSDC.toFixed());
+        await marketProtocol.connect(borrower).borrow(USDC.address, toBorrow.toFixed());
+        await USDC.connect(borrower).increaseAllowance(marketProtocol.address, toBorrow.toFixed());
         const poolBalanceAfterBorrow = await USDC.balanceOf(asset.yetiToken);
 
-        await marketProtocol.connect(borrower).payback(USDC.address, availableLiquidityUSDC.toFixed());
+        await marketProtocol.connect(borrower).payback(USDC.address, toBorrow.toFixed());
 
-        expect(await USDC.balanceOf(asset.yetiToken)).to.be.equal(poolBalanceAfterBorrow.add(availableLiquidityUSDC.toFixed()));
+        expect(await USDC.balanceOf(asset.yetiToken)).to.be.equal(poolBalanceAfterBorrow.add(toBorrow.toFixed()));
     });
 });
