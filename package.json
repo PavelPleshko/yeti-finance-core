@@ -3,7 +3,9 @@
   "version": "0.0.0",
   "scripts": {
     "yeti:dev": "hardhat compile && hardhat yeti:dev",
-    "yeti:test": "hardhat compile && hardhat test ./test/setup/*.spec.ts ./test/yeti/*.spec.ts"
+    "yeti:compile": "SKIP_TASKS_LOAD=true hardhat compile",
+    "yeti:typechain": "SKIP_TASKS_LOAD=true hardhat typechain",
+    "yeti:test": "npm run yeti:compile && hardhat test ./test/setup/*.spec.ts ./test/yeti/*.spec.ts"
   },
   "devDependencies": {
     "@eth-optimism/smock": "^1.1.10",

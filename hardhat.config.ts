@@ -10,17 +10,21 @@ import 'solidity-coverage';
 
 dotenv.config();
 
-// load tasks first so hardhat can see their definitions
-const TASKS_PATH = path.join(__dirname, 'tasks/deployments');
+const SKIP_TASKS_LOAD = process.env.SKIP_TASKS_LOAD === 'true';
 
-['migrations', 'setup'].forEach(folderName => {
-    fs.readdirSync(path.join(TASKS_PATH, folderName)).forEach(fileName => {
-        // we need only ts files because they contain tasks definitions
-        if (fileName.endsWith('.ts')) {
-            require(path.join(TASKS_PATH, folderName, fileName));
-        }
+if (!SKIP_TASKS_LOAD) {
+    // load tasks first so hardhat can see their definitions
+    const TASKS_PATH = path.join(__dirname, 'tasks/deployments');
+
+    ['migrations', 'setup'].forEach(folderName => {
+        fs.readdirSync(path.join(TASKS_PATH, folderName)).forEach(fileName => {
+            // we need only ts files because they contain tasks definitions
+            if (fileName.endsWith('.ts')) {
+                require(path.join(TASKS_PATH, folderName, fileName));
+            }
+        });
     });
-});
+}
 
 // This is a sample Hardhat task. To learn how to create your own go to
 // https://hardhat.org/guides/create-task.html
