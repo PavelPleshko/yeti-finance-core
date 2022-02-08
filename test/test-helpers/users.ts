@@ -12,6 +12,11 @@ interface AssetMetadata {
     decimals: number;
 }
 
+/**
+ * Does the calculation of the ratio with which the price of one asset
+ * can be compared to another.
+ * For ex.: USDC/DAI -> 0.5 is the coefficient if price of USDC is 0.2 and DAI is 0.4.
+ */
 export const getAssetsPriceRatio = async (asset1Address: string, asset2Address: string): Promise<BigNumber> => {
     const priceFeed = await getPriceFeed();
 
@@ -20,6 +25,13 @@ export const getAssetsPriceRatio = async (asset1Address: string, asset2Address: 
     return asset1Price.dividedBy(asset2Price);
 };
 
+/**
+ * Calculates how much of second asset is needed to exchange for {@param amount}
+ * of first asset with rounding UP.
+ * @param convertFrom - address of asset to derive equivalent value from
+ * @param convertTo - address of asset to derive equivalent value for
+ * @param amount - raw amount with decimals
+ */
 export const calculateEquivalentInValue = async (convertFrom: string, convertTo: string, amount: BigNumber): Promise<BigNumber> => {
     const marketProtocol = await getMarketProtocol();
     const asset1Info = await marketProtocol.getAsset(convertFrom);
@@ -31,6 +43,17 @@ export const calculateEquivalentInValue = async (convertFrom: string, convertTo:
     ).decimalPlaces(0, BigNumber.ROUND_UP);
 };
 
+/**
+ * Helper function in order to simplify satisfying pre-conditions
+ * for user to be able to borrow from the asset pool.
+ * It involves:
+ *  1. Making sure that pool has enough liquidity available.
+ *  2. Making sure that borrower has enough collateral value locked to fulfil operation.
+ *  3. Choosing depositors and collateral asset so that they are not equal to the entities in args.
+ * @param realWorldAmount - simple value without decimals
+ * @param assetName - asset to be able to borrow
+ * @param user - borrower
+ */
 export const fulfillBorrowRequirements = async (
     realWorldAmount: number,
     assetName: string,

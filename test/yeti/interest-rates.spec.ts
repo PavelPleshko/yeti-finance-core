@@ -7,7 +7,12 @@ import { getInterfaceAtAddress, getMarketProtocol, YetiContracts } from '../../u
 import { getCurrentBlock, travelToFuture } from '../misc/evm-commands';
 import { wrapInEnv } from '../setup/tests-setup.spec';
 import { depositAsset } from '../test-helpers/deposit';
-import { calculateCompoundedInterest, calculateNewBorrowRate } from '../test-helpers/interest-rates-calculations';
+import {
+    calculateCompoundedInterest,
+    calculateNewBorrowIndex,
+    calculateNewLiquidityIndex,
+    calculateSimpleInterest
+} from '../test-helpers/interest-rates-calculations';
 import { fulfillBorrowRequirements } from '../test-helpers/users';
 
 wrapInEnv('InterestRates', testEnv => {
@@ -122,7 +127,7 @@ wrapInEnv('Borrow rate', testEnv => {
 
 wrapInEnv('Accrued interests', testEnv => {
 
-    it('should accrue debt over time', async () => {
+    it('should accrue interests over time', async () => {
         const { USDC } = testEnv.contracts;
         const USDCConfig = testEnv.config.assetsConfig['USDC'];
         const marketProtocol = await getMarketProtocol();
@@ -153,12 +158,20 @@ wrapInEnv('Accrued interests', testEnv => {
         const newAssetInfo = await marketProtocol.getAsset(USDC.address);
 
         const currentBlock = await getCurrentBlock();
-        const accruedInterest = calculateCompoundedInterest(
+        const accruedDebt = calculateCompoundedInterest(
             new BigNumber(assetInfo.currentBorrowRate.toString()),
             assetInfo.lastUpdated.toNumber(),
             currentBlock.timestamp,
         );
-        const expectedBorrowRate = calculateNewBorrowRate(accruedInterest, new BigNumber(assetInfo.currentBorrowIndex.toString()));
-        expect(newAssetInfo.currentBorrowIndex.toString()).to.equal(expectedBorrowRate.toFixed());
+        const expectedBorrowIndex = calculateNewBorrowIndex(accruedDebt, new BigNumber(assetInfo.currentBorrowIndex.toString()));
+        expect(newAssetInfo.currentBorrowIndex.toString()).to.equal(expectedBorrowIndex.toFixed());
+
+        const accruedInterest = calculateSimpleInterest(
+            new BigNumber(assetInfo.currentLiquidityRate.toString()),
+            assetInfo.lastUpdated.toNumber(),
+            currentBlock.timestamp,
+        );
+        const expectedLiquidityIndex = calculateNewLiquidityIndex(accruedInterest, new BigNumber(assetInfo.currentLiquidityIndex.toString()));
+        expect(newAssetInfo.currentLiquidityIndex.toString()).to.equal(expectedLiquidityIndex.toFixed());
     });
 });
