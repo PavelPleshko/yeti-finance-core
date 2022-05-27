@@ -45,7 +45,7 @@ export default {
             priceFeedAddress: '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
         },
         [eEthereumNetwork.hardhat]: {
-            inMemoryDb: true,
+            inMemoryDb: false,
             priceFeedAddress: constants.AddressZero,
         }
     }

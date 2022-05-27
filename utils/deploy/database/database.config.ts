@@ -2,6 +2,7 @@ import { ProtocolConfig } from '../../config';
 import { eEthereumNetwork } from '../../config/networks';
 import { DEV_RE } from '../../misc';
 import { DatabaseBase } from './database.base';
+import { DiskDatabase } from './disk.database';
 import { InMemoryDatabase } from './in-memory.database';
 
 
@@ -12,7 +13,6 @@ export const initDbFromConfig = (config: ProtocolConfig): DatabaseBase => {
     if (envConfigForNetwork.inMemoryDb) {
         return new InMemoryDatabase(network);
     } else {
-        // TODO return FileDB;
-        return new InMemoryDatabase(network)
+        return new DiskDatabase(network)
     }
 }
