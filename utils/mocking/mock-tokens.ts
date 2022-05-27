@@ -1,9 +1,9 @@
 import { ERC20Mock } from '../../typechain';
-import { TokenIds } from '../../utils/config/tokens';
-import { deployERC20MockToken } from '../../utils/contract-deploy';
+import { TokenIds } from '../config/tokens';
+import { deployERC20MockToken } from '../contract-deploy';
 
 
-export const deployTokenMocks = async (): Promise<Record<string, ERC20Mock>> => {
+export const deployERC20Mocks = async (): Promise<Record<string, ERC20Mock>> => {
     const tokens = {} as Record<string, ERC20Mock>;
 
     await Promise.all(Object.keys(TokenIds)

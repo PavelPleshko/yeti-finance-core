@@ -20,8 +20,7 @@ import {
     YToken__factory
 } from '../typechain';
 import { getSignerAccounts } from './contract-deploy';
-import { DatabaseBase } from './deploy/database/database.base';
-import { getDependencyByKey } from './env/ioc';
+import { injectFromEnv } from './env/ioc';
 
 export const enum YetiContracts {
     Yeti = 'Yeti',
@@ -76,7 +75,7 @@ export const getInterfaceAtAddress = <T extends YetiContracts> (
 };
 
 export const getContractAddress = async (contractId: YetiContracts): Promise<string> => {
-    const db = getDependencyByKey<DatabaseBase>('db');
+    const db = injectFromEnv('db');
 
     return await db.get(contractId);
 };

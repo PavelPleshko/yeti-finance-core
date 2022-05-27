@@ -1,23 +1,31 @@
 import { task } from 'hardhat/config';
-import { deployAddressesProvider, deployYetiProtocol } from '../../../utils/contract-deploy';
+
+import {
+    DEV_DEPLOY_MOCK_TOKENS_TASK, DEV_DEPLOY_ORACLES_TASK, DEV_DEPLOY_PROTOCOL_TASK,
+    DEV_DEPLOY_PROTOCOL_TOKENS_TASK, DEV_ENV_SETUP_TASK, DEV_INIT_PROTOCOL_TASK,
+} from '../development';
+
 
 task('yeti:dev', 'Launch development environment for yeti exchange protocol')
     .addFlag('verify', 'Verify contracts at Etherscan')
     .setAction(async ({ verify }, localBRE) => {
-        await localBRE.run('env:setup');
-
         console.log('Migration has started...\n');
 
-        console.log('Step 1. Deploy address provider...');
-        await localBRE.run('yeti:dev:deploy-address-provider', { verify });
+        console.log('Step 0. Setting up dev environment...');
+        await localBRE.run(DEV_ENV_SETUP_TASK);
 
+        console.log('Step 1. Deploying ERC20 mock tokens...');
+        await localBRE.run(DEV_DEPLOY_MOCK_TOKENS_TASK);
 
-        console.log('Step 2. Deploy exchange pair configurator...');
-    });
+        console.log('Step 2. Deploying protocol core...');
+        await localBRE.run(DEV_DEPLOY_PROTOCOL_TASK);
 
+        console.log('Step 3. Deploying protocol tokens...');
+        await localBRE.run(DEV_DEPLOY_PROTOCOL_TOKENS_TASK);
 
-task('yeti:dev:deploy-address-provider', 'TODO')
-    .setAction(async ({ verify }, localBRE) => {
-        await deployYetiProtocol();
-        await deployAddressesProvider();
+        console.log('Step 4. Deploying oracles...');
+        await localBRE.run(DEV_DEPLOY_ORACLES_TASK);
+
+        console.log('Step 5. Initializing protocol...');
+        await localBRE.run(DEV_INIT_PROTOCOL_TASK);
     });
