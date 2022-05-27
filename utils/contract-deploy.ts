@@ -3,7 +3,7 @@ import { Contract, ContractReceipt, ContractTransaction, Event as LogEvent } fro
 import { AddressesProvider, AssetPoolManager, ERC20Mock, PriceFeedRouter, SnowballInterestStrategy, Yeti, YToken } from '../typechain';
 import { YetiContracts } from './contract-factories';
 import { DatabaseBase } from './deploy/database/database.base';
-import { getDependencyByKey } from './env/ioc';
+import { injectFromEnv } from './env/ioc';
 import { DEV_RE } from './misc';
 
 export const deployYetiProtocol = async (as?: SignerWithAddress): Promise<Yeti> => {
@@ -74,7 +74,7 @@ export const deployERC20MockToken = async (args: [ string, string, number ]): Pr
 export const persistentDeploy = async <ContractType extends Contract> (instance: ContractType, contractId: YetiContracts): Promise<ContractType> => {
     await waitForTransaction(instance.deployTransaction);
 
-    const db = getDependencyByKey<DatabaseBase>('db');
+    const db = injectFromEnv('db');
     await db.set(contractId, instance);
     return instance;
 };

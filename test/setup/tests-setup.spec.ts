@@ -28,7 +28,7 @@ import { deployDebtTokenImplementation, deployYetiTokenImplementation } from '..
 import { configureAssets, initAssets } from '../../utils/initialization/init-assets';
 import { DEV_RE } from '../../utils/misc';
 import { setInitialMockPriceFeedForTokens } from './asset-prices';
-import { deployTokenMocks } from './mock-tokens';
+import { deployERC20Mocks } from '../../utils/mocking/mock-tokens';
 
 export interface TestEnv {
     deployer: string;
@@ -58,7 +58,7 @@ const createTestEnv = async (owner: Signer) => {
 
     const deployer = await owner.getAddress();
 
-    const tokenMocks = await deployTokenMocks();
+    const tokenMocks = await deployERC20Mocks();
 
     const addressesProvider = await persistentDeploy(await deployAddressesProvider(), YetiContracts.AddressesProvider);
     await waitForTransaction(await addressesProvider.setMarketAdmin(deployer));
