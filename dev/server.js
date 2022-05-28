@@ -9,6 +9,7 @@ const DEFAULT_PORT = 8080;
  */
 http.createServer((req, res) => {
     fs.readFile(`${process.cwd()}${req.url}`, (err, data) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
         if (err) {
             res.writeHead(404);
             res.end(JSON.stringify(err));
