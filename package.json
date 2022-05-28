@@ -5,7 +5,8 @@
     "yeti:dev": "hardhat compile && hardhat yeti:dev",
     "yeti:compile": "SKIP_TASKS_LOAD=true hardhat compile",
     "yeti:typechain": "SKIP_TASKS_LOAD=true hardhat typechain",
-    "yeti:test": "npm run yeti:compile && hardhat test ./test/setup/*.spec.ts ./test/yeti/*.spec.ts"
+    "yeti:test": "npm run yeti:compile && hardhat test ./test/setup/*.spec.ts ./test/yeti/*.spec.ts",
+    "yeti:dev:serve": "npm run yeti:dev && node ./dev/server.js"
   },
   "devDependencies": {
     "@eth-optimism/smock": "^1.1.10",
