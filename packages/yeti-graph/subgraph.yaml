@@ -1,0 +1,25 @@
+specVersion: 0.0.4
+description: Yeti is an open-source protocol for lending and borrowing of crypto assets
+repository: https://github.com/PavelPleshko/yeti-finance-core
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: yeti
+    network: dev
+    source:
+      abi: Yeti
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      file: ./src/mappings/yeti-protocol.ts
+      entities:
+        - Pool
+      abis:
+        - name: Yeti
+          file: ../../yeti-contracts/artifacts/contracts/protocol/IYeti.sol/IYeti.json
+      eventHandlers:
+        - event: Deposit(indexed address,address,uint256)
+          handler: handleDeposit
+

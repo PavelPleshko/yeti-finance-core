@@ -3,12 +3,12 @@ import { task } from 'hardhat/config';
 import {
     DEV_DEPLOY_MOCK_TOKENS_TASK, DEV_DEPLOY_ORACLES_TASK, DEV_DEPLOY_PROTOCOL_TASK,
     DEV_DEPLOY_PROTOCOL_TOKENS_TASK, DEV_ENV_SETUP_TASK, DEV_INIT_PROTOCOL_TASK,
+    DEV_PROVIDE_LIQUIDITY_TASK,
 } from '../development';
 
 
 task('yeti:dev', 'Launch development environment for yeti exchange protocol')
-    .addFlag('verify', 'Verify contracts at Etherscan')
-    .setAction(async ({ verify }, localBRE) => {
+    .setAction(async (_, localBRE) => {
         console.log('Migration has started...\n');
 
         console.log('Step 0. Setting up dev environment...');
@@ -28,4 +28,7 @@ task('yeti:dev', 'Launch development environment for yeti exchange protocol')
 
         console.log('Step 5. Initializing protocol...');
         await localBRE.run(DEV_INIT_PROTOCOL_TASK);
+
+        console.log('Step 6. Providing initial liquidity...');
+        await localBRE.run(DEV_PROVIDE_LIQUIDITY_TASK);
     });

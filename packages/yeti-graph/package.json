@@ -1,0 +1,15 @@
+{
+  "name": "@yeti/graph",
+  "version": "1.0.0",
+  "description": "Yeti finance graph",
+  "scripts": {
+    "codegen": "graph codegen --output-dir src/types/",
+    "build": "graph build"
+  },
+  "author": "Pavel Pleshko",
+  "license": "ISC",
+  "devDependencies": {
+    "@graphprotocol/graph-ts": "^0.27.0",
+    "@graphprotocol/graph-cli": "http://github.com/graphprotocol/graph-cli#ford/add-startblock-to-contract-source"
+  }
+}

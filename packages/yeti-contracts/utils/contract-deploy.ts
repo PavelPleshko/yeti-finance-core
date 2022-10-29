@@ -2,7 +2,6 @@ import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers';
 import { Contract, ContractReceipt, ContractTransaction, Event as LogEvent } from 'ethers';
 import { AddressesProvider, AssetPoolManager, ERC20Mock, PriceFeedRouter, SnowballInterestStrategy, Yeti, YToken } from '../typechain';
 import { YetiContracts } from './contract-factories';
-import { DatabaseBase } from './deploy/database/database.base';
 import { injectFromEnv } from './env/ioc';
 import { DEV_RE } from './misc';
 

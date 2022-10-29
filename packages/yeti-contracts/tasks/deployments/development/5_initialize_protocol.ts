@@ -1,7 +1,6 @@
 import { task } from 'hardhat/config';
 import { setInitialMockPriceFeedForTokens } from '../../../test/setup/asset-prices';
 
-// import { injectFromEnv } from '../../../utils/env/ioc';
 import { configureAssets, initAssets } from '../../../utils/initialization/init-assets';
 import { selectState } from '../../tasks-helpers/shared-state.utils';
 import protocolConfig from '../../../utils/config';
@@ -10,7 +9,6 @@ export const DEV_INIT_PROTOCOL_TASK = 'dev:initialize-protocol';
 
 task(DEV_INIT_PROTOCOL_TASK)
     .setAction(async () => {
-        // const owner = injectFromEnv('owner');
         const tokenAddresses = selectState(({ tokens }) => tokens);
         const config = protocolConfig;
 

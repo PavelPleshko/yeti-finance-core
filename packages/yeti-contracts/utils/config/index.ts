@@ -22,6 +22,7 @@ export default {
             //  TODO
         },
         [eEthereumNetwork.hardhat]: {},
+        [eEthereumNetwork.node]: {},
     },
     assetsConfig: {
         [LendingPoolAssets.USDC]: {
@@ -45,8 +46,12 @@ export default {
             priceFeedAddress: '0x47Fb2585D2C56Fe188D0E6ec628a38b74fCeeeDf',
         },
         [eEthereumNetwork.hardhat]: {
+            inMemoryDb: true,
+            priceFeedAddress: constants.AddressZero,
+        },
+        [eEthereumNetwork.node]: {
             inMemoryDb: false,
             priceFeedAddress: constants.AddressZero,
-        }
+        },
     }
 } as ProtocolConfig<LendingPoolAssets>;
